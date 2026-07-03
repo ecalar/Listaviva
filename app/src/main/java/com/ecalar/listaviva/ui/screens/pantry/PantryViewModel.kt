@@ -174,3 +174,8 @@ class PantryViewModel @Inject constructor(
 private fun <T> runBlocking(block: suspend () -> T): T {
     return kotlinx.coroutines.runBlocking { block() }
 }
+
+// Método para añadir a lista de compra desde despensa
+fun addToShoppingList(item: PantryItem, listId: String) {
+    // Se llamará desde la UI cuando se seleccione "Agotado" y una lista
+}

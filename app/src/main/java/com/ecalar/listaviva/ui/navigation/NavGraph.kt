@@ -1,6 +1,9 @@
 package com.ecalar.listaviva.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -9,8 +12,12 @@ import com.ecalar.listaviva.ui.screens.family.create.CreateFamilyScreen
 import com.ecalar.listaviva.ui.screens.family.join.JoinFamilyScreen
 import com.ecalar.listaviva.ui.screens.home.HomeScreen
 import com.ecalar.listaviva.ui.screens.pantry.PantryScreen
+import com.ecalar.listaviva.ui.screens.pantry.PantryViewModel
 import com.ecalar.listaviva.ui.screens.pantry.add.AddProductScreen
 import com.ecalar.listaviva.ui.screens.scanner.QRScannerScreen
+import com.ecalar.listaviva.ui.screens.shopping.detail.AddItemToListScreen
+import com.ecalar.listaviva.ui.screens.shopping.ShoppingListsScreen
+import com.ecalar.listaviva.ui.screens.shopping.ShoppingListsViewModel
 import com.ecalar.listaviva.ui.screens.splash.SplashScreen
 
 object Routes {
@@ -23,6 +30,7 @@ object Routes {
     const val PANTRY = "pantry"
     const val ADD_PRODUCT = "add_product"
     const val SHOPPING_LISTS = "shopping_lists"
+    const val ADD_TO_LIST = "add_to_list"
     const val SETTINGS = "settings"
 }
 
@@ -118,7 +126,6 @@ fun NavGraph(navController: NavHostController) {
         }
 
         composable(Routes.ADD_PRODUCT) {
-            // Usamos un ViewModel compartido. Por ahora, placeholder.
             AddProductScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onProductAdded = { name, category, subcategory, format, notes ->
@@ -131,12 +138,39 @@ fun NavGraph(navController: NavHostController) {
         }
 
         composable(Routes.SHOPPING_LISTS) {
-            // Placeholder para Hito 5
-            ShoppingListsPlaceholder()
+            val viewModel: ShoppingListsViewModel = hiltViewModel()
+            ShoppingListsScreen(
+                viewModel = viewModel,
+                onNavigateToAddItem = {
+                    navController.navigate(Routes.ADD_TO_LIST)
+                }
+            )
+        }
+
+        composable(Routes.ADD_TO_LIST) {
+            val pantryViewModel: PantryViewModel = hiltViewModel()
+            val shoppingViewModel: ShoppingListsViewModel = hiltViewModel()
+            val pantryItems by pantryViewModel.state.collectAsState()
+
+            AddItemToListScreen(
+                pantryItems = pantryItems.items,
+                onAddFromPantry = { pantryItem ->
+                    shoppingViewModel.addItemToList(
+                        name = pantryItem.name,
+                        pantryItemId = pantryItem.id,
+                        quantity = pantryItem.format
+                    )
+                    navController.popBackStack()
+                },
+                onAddManual = { name ->
+                    shoppingViewModel.addItemToList(name = name, pantryItemId = null)
+                    navController.popBackStack()
+                },
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
 
         composable(Routes.SETTINGS) {
-            // Placeholder para Hito 6
             SettingsPlaceholder()
         }
     }
@@ -144,12 +178,10 @@ fun NavGraph(navController: NavHostController) {
 
 @Composable
 fun ShoppingListsPlaceholder() {
-    // TODO: Implementar en Hito 5
     androidx.compose.material3.Text("Listas de la compra - Próximamente")
 }
 
 @Composable
 fun SettingsPlaceholder() {
-    // TODO: Implementar en Hito 6
     androidx.compose.material3.Text("Ajustes - Próximamente")
 }
