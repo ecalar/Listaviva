@@ -2,41 +2,67 @@ package com.ecalar.listaviva.ui.screens.home
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.outlined.Kitchen
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen() {
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.Home,
-                contentDescription = "Inicio",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(64.dp)
+fun HomeScreen(
+    onNavigateToPantry: () -> Unit,
+    onNavigateToShoppingList: () -> Unit,
+    onNavigateToSettings: () -> Unit
+) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Listaviva") },
+                actions = {
+                    IconButton(onClick = onNavigateToSettings) {
+                        Icon(Icons.Default.Settings, contentDescription = "Ajustes")
+                    }
+                }
             )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "¡Bienvenido a Listaviva!",
-                style = MaterialTheme.typography.headlineMedium
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Aquí irá tu despensa y listas",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-            )
+        },
+        bottomBar = {
+            NavigationBar {
+                NavigationBarItem(
+                    icon = { Icon(Icons.Outlined.Kitchen, contentDescription = null) },
+                    label = { Text("Despensa") },
+                    selected = true,
+                    onClick = onNavigateToPantry
+                )
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.ShoppingCart, contentDescription = null) },
+                    label = { Text("Listas") },
+                    selected = false,
+                    onClick = onNavigateToShoppingList
+                )
+            }
         }
+    ) { padding ->
+        PantryScreen(
+            modifier = Modifier.padding(padding),
+            onNavigateToAdd = { /* Navegar a añadir producto */ }
+        )
+    }
+}
+
+@Composable
+fun PantryScreen(
+    modifier: Modifier = Modifier,
+    onNavigateToAdd: () -> Unit
+) {
+    // Placeholder - se reemplazará con la PantryScreen real
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Text("Pantalla de Despensa")
     }
 }

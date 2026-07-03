@@ -8,6 +8,8 @@ import com.ecalar.listaviva.ui.screens.auth.AuthScreen
 import com.ecalar.listaviva.ui.screens.family.create.CreateFamilyScreen
 import com.ecalar.listaviva.ui.screens.family.join.JoinFamilyScreen
 import com.ecalar.listaviva.ui.screens.home.HomeScreen
+import com.ecalar.listaviva.ui.screens.pantry.PantryScreen
+import com.ecalar.listaviva.ui.screens.pantry.add.AddProductScreen
 import com.ecalar.listaviva.ui.screens.scanner.QRScannerScreen
 import com.ecalar.listaviva.ui.screens.splash.SplashScreen
 
@@ -18,6 +20,10 @@ object Routes {
     const val CREATE_FAMILY = "create_family"
     const val JOIN_FAMILY = "join_family"
     const val QR_SCANNER = "qr_scanner"
+    const val PANTRY = "pantry"
+    const val ADD_PRODUCT = "add_product"
+    const val SHOPPING_LISTS = "shopping_lists"
+    const val SETTINGS = "settings"
 }
 
 @Composable
@@ -42,7 +48,17 @@ fun NavGraph(navController: NavHostController) {
         }
 
         composable(Routes.HOME) {
-            HomeScreen()
+            HomeScreen(
+                onNavigateToPantry = {
+                    navController.navigate(Routes.PANTRY)
+                },
+                onNavigateToShoppingList = {
+                    navController.navigate(Routes.SHOPPING_LISTS)
+                },
+                onNavigateToSettings = {
+                    navController.navigate(Routes.SETTINGS)
+                }
+            )
         }
 
         composable(Routes.AUTH) {
@@ -92,5 +108,48 @@ fun NavGraph(navController: NavHostController) {
                 }
             )
         }
+
+        composable(Routes.PANTRY) {
+            PantryScreen(
+                onNavigateToAdd = {
+                    navController.navigate(Routes.ADD_PRODUCT)
+                }
+            )
+        }
+
+        composable(Routes.ADD_PRODUCT) {
+            // Usamos un ViewModel compartido. Por ahora, placeholder.
+            AddProductScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onProductAdded = { name, category, subcategory, format, notes ->
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("new_product", listOf(name, category, subcategory, format, notes))
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable(Routes.SHOPPING_LISTS) {
+            // Placeholder para Hito 5
+            ShoppingListsPlaceholder()
+        }
+
+        composable(Routes.SETTINGS) {
+            // Placeholder para Hito 6
+            SettingsPlaceholder()
+        }
     }
+}
+
+@Composable
+fun ShoppingListsPlaceholder() {
+    // TODO: Implementar en Hito 5
+    androidx.compose.material3.Text("Listas de la compra - Próximamente")
+}
+
+@Composable
+fun SettingsPlaceholder() {
+    // TODO: Implementar en Hito 6
+    androidx.compose.material3.Text("Ajustes - Próximamente")
 }
