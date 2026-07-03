@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "404801668020",
+    "project_id": "listaviva-f6be0",
+    "storage_bucket": "listaviva-f6be0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:404801668020:android:4d8092da2fdcca4019e8e1",
+        "android_client_info": {
+          "package_name": "com.ecalar.listaviva"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBwRDP_qTu8QZ4fNQSUKvKEjT_tIM-L878"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
