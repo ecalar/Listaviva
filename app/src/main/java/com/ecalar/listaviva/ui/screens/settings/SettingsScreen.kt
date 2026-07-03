@@ -1,12 +1,12 @@
 package com.ecalar.listaviva.ui.screens.settings
 
 import android.content.Intent
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,11 +34,9 @@ fun SettingsScreen(
         }
     }
 
-    // Si el usuario sale del grupo, volver a Auth
+    // Solo navegar si el usuario EXPLÍCITAMENTE sale del grupo
     LaunchedEffect(state.showLeaveDialog) {
-        if (!state.showLeaveDialog && state.familyName.isEmpty()) {
-            onNavigateToAuth()
-        }
+        // No hacemos nada automático, el usuario debe confirmar
     }
 
     Scaffold(
@@ -67,7 +65,6 @@ fun SettingsScreen(
             ) {
                 // Sección Perfil
                 SettingsSection(title = "Perfil") {
-                    // Alias
                     ListItem(
                         headlineContent = { Text("Tu nombre en el grupo") },
                         supportingContent = { Text(state.userAlias.ifEmpty { "Sin alias" }) },
@@ -82,11 +79,10 @@ fun SettingsScreen(
                     )
                 }
 
-                Divider(modifier = Modifier.padding(horizontal = 16.dp))
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
                 // Sección Grupo
                 SettingsSection(title = "Grupo: ${state.familyName}") {
-                    // Código de invitación
                     ListItem(
                         headlineContent = { Text("Código de invitación") },
                         supportingContent = {
@@ -112,7 +108,6 @@ fun SettingsScreen(
                         }
                     )
 
-                    // Compartir código
                     ListItem(
                         headlineContent = { Text("Compartir código") },
                         supportingContent = { Text("Invita a más miembros al grupo") },
@@ -136,7 +131,6 @@ fun SettingsScreen(
                         }
                     )
 
-                    // Regenerar código
                     if (state.isCreator) {
                         ListItem(
                             headlineContent = { Text("Regenerar código") },
@@ -152,7 +146,6 @@ fun SettingsScreen(
                         )
                     }
 
-                    // Miembros
                     ListItem(
                         headlineContent = { Text("Miembros del grupo") },
                         supportingContent = { Text("${state.members.size} miembros") },
@@ -165,7 +158,6 @@ fun SettingsScreen(
                         }
                     )
 
-                    // Salir del grupo
                     ListItem(
                         headlineContent = {
                             Text(
@@ -185,11 +177,10 @@ fun SettingsScreen(
                     )
                 }
 
-                Divider(modifier = Modifier.padding(horizontal = 16.dp))
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
                 // Sección Preferencias
                 SettingsSection(title = "Preferencias") {
-                    // Notificaciones
                     ListItem(
                         headlineContent = { Text("Notificaciones") },
                         supportingContent = {
@@ -214,7 +205,7 @@ fun SettingsScreen(
                     )
                 }
 
-                Divider(modifier = Modifier.padding(horizontal = 16.dp))
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
                 // Sección Acerca de
                 SettingsSection(title = "Acerca de") {
@@ -318,11 +309,15 @@ fun SettingsScreen(
                 onDismissRequest = { viewModel.hideLeaveDialog() },
                 title = { Text("Salir del grupo") },
                 text = {
-                    Text("Dejarás de ver la despensa compartida. Si eres el creador, el grupo se quedará sin administrador. ¿Estás seguro de que quieres salir?")
+                    Text("Dejarás de ver la despensa compartida. ¿Estás seguro de que quieres salir?")
                 },
                 confirmButton = {
                     TextButton(
-                        onClick = { viewModel.leaveFamily() },
+                        onClick = {
+                            viewModel.leaveFamily()
+                            viewModel.hideLeaveDialog()
+                            onNavigateToAuth()
+                        },
                         colors = ButtonDefaults.textButtonColors(
                             contentColor = MaterialTheme.colorScheme.error
                         )
@@ -359,12 +354,4 @@ fun SettingsSection(
         )
         content()
     }
-}
-
-// Extensión para hacer clicable un ListItem
-@Composable
-fun Modifier.clickable(onClick: () -> Unit): Modifier {
-    return this.then(
-        Modifier.clickable { onClick() }
-    )
 }

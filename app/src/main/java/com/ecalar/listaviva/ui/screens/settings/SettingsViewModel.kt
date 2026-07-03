@@ -6,6 +6,7 @@ import com.ecalar.listaviva.data.local.LocalPreferences
 import com.ecalar.listaviva.data.repository.AuthRepository
 import com.ecalar.listaviva.data.repository.FamilyRepository
 import com.ecalar.listaviva.domain.model.Family
+import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -24,7 +25,8 @@ data class SettingsState(
     val showRegenerateDialog: Boolean = false,
     val showAliasDialog: Boolean = false,
     val newAlias: String = "",
-    val isCreator: Boolean = false
+    val isCreator: Boolean = false,
+    val hasLeftGroup: Boolean = false
 )
 
 @HiltViewModel
@@ -48,12 +50,10 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
 
-            // Cargar alias
             localPreferences.userAlias.first()?.let { alias ->
                 _state.value = _state.value.copy(userAlias = alias)
             }
 
-            // Cargar info de familia
             if (familyId.isNotEmpty()) {
                 familyRepository.getFamily(familyId)
                     .onSuccess { family ->
@@ -93,13 +93,12 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun regenerateCode() {
-        // Para simplificar, solo mostramos mensaje.
-        // En una implementación real, se actualizaría en Firestore.
+        val newCode = FamilyRepository(
+            FirebaseFirestore.getInstance()
+        ).generateInviteCode()
         _state.value = _state.value.copy(
             showRegenerateDialog = false,
-            familyCode = FamilyRepository(
-                com.google.firebase.firestore.FirebaseFirestore.getInstance()
-            ).generateInviteCode()
+            familyCode = newCode
         )
     }
 
@@ -107,8 +106,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             localPreferences.clearAll()
             authRepository.signOut()
-            _state.value = _state.value.copy(showLeaveDialog = false)
-            // La navegación se manejará desde la UI
+            _state.value = _state.value.copy(hasLeftGroup = true)
         }
     }
 
@@ -118,7 +116,6 @@ class SettingsViewModel @Inject constructor(
         )
     }
 
-    // Diálogos
     fun showLeaveDialog() { _state.value = _state.value.copy(showLeaveDialog = true) }
     fun hideLeaveDialog() { _state.value = _state.value.copy(showLeaveDialog = false) }
     fun showRegenerateDialog() { _state.value = _state.value.copy(showRegenerateDialog = true) }

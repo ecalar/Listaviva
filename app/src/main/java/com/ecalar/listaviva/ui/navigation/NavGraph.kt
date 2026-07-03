@@ -18,9 +18,9 @@ import com.ecalar.listaviva.ui.screens.pantry.PantryViewModel
 import com.ecalar.listaviva.ui.screens.pantry.add.AddProductScreen
 import com.ecalar.listaviva.ui.screens.scanner.QRScannerScreen
 import com.ecalar.listaviva.ui.screens.settings.SettingsScreen
-import com.ecalar.listaviva.ui.screens.shopping.detail.AddItemToListScreen
 import com.ecalar.listaviva.ui.screens.shopping.ShoppingListsScreen
 import com.ecalar.listaviva.ui.screens.shopping.ShoppingListsViewModel
+import com.ecalar.listaviva.ui.screens.shopping.detail.AddItemToListScreen
 import com.ecalar.listaviva.ui.screens.splash.SplashScreen
 import com.ecalar.listaviva.ui.screens.stats.StatsScreen
 
@@ -142,7 +142,6 @@ fun NavGraph(navController: NavHostController) {
             val pantryViewModel: PantryViewModel = hiltViewModel()
             val state by pantryViewModel.state.collectAsState()
 
-            // Escuchar nuevo producto añadido desde AddProductScreen
             val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle
             val newProduct = savedStateHandle?.getLiveData<List<String>>("new_product")
 
@@ -198,7 +197,7 @@ fun NavGraph(navController: NavHostController) {
 
             AddItemToListScreen(
                 pantryItems = pantryItems.items,
-                onAddFromPantry = { pantryItem: com.ecalar.listaviva.domain.model.PantryItem ->
+                onAddFromPantry = { pantryItem ->
                     shoppingViewModel.addItemToList(
                         name = pantryItem.name,
                         pantryItemId = pantryItem.id,
@@ -206,7 +205,7 @@ fun NavGraph(navController: NavHostController) {
                     )
                     navController.popBackStack()
                 },
-                onAddManual = { name: String ->
+                onAddManual = { name ->
                     shoppingViewModel.addItemToList(name = name, pantryItemId = null)
                     navController.popBackStack()
                 },

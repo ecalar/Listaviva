@@ -16,8 +16,6 @@ fun HomeScreen(
     onNavigateToShoppingList: () -> Unit,
     onNavigateToSettings: () -> Unit
 ) {
-    var selectedTab by remember { mutableIntStateOf(0) }
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -34,28 +32,22 @@ fun HomeScreen(
                 NavigationBarItem(
                     icon = { Icon(Icons.Outlined.Kitchen, contentDescription = null) },
                     label = { Text("Despensa") },
-                    selected = selectedTab == 0,
-                    onClick = {
-                        selectedTab = 0
-                        onNavigateToPantry()
-                    }
+                    selected = true,
+                    onClick = onNavigateToPantry
                 )
                 NavigationBarItem(
                     icon = { Icon(Icons.Default.ShoppingCart, contentDescription = null) },
                     label = { Text("Listas") },
-                    selected = selectedTab == 1,
-                    onClick = {
-                        selectedTab = 1
-                        onNavigateToShoppingList()
-                    }
+                    selected = false,
+                    onClick = onNavigateToShoppingList
                 )
             }
         }
     ) { padding ->
         Box(modifier = Modifier.padding(padding)) {
-            when (selectedTab) {
-                0 -> Text("Despensa - Usa el botón para navegar", modifier = Modifier.fillMaxSize())
-                1 -> Text("Listas - Usa el botón para navegar", modifier = Modifier.fillMaxSize())
+            // Este HomeScreen es solo un hub, redirige inmediatamente a Despensa
+            LaunchedEffect(Unit) {
+                onNavigateToPantry()
             }
         }
     }

@@ -1,5 +1,6 @@
 package com.ecalar.listaviva.ui.screens.pantry
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -13,9 +14,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -31,7 +29,6 @@ fun PantryScreen(
     val state by viewModel.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Mostrar errores
     LaunchedEffect(state.error) {
         state.error?.let {
             snackbarHostState.showSnackbar(it)
@@ -44,7 +41,7 @@ fun PantryScreen(
             TopAppBar(
                 title = { Text("Despensa") },
                 actions = {
-                    IconButton(onClick = { /* Búsqueda */ }) {
+                    IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
                         Icon(Icons.Default.Search, contentDescription = "Buscar")
                     }
                 }
@@ -68,49 +65,61 @@ fun PantryScreen(
             // Chips de categorías
             CategoryChips(
                 selectedCategory = state.selectedCategory,
-                onCategorySelected = viewModel::selectCategory,
-                categories = viewModel.getCategories()
+                onCategorySelected = viewModel::selectCategory
             )
 
-            // Indicador de carga
-            if (state.isLoading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
+            // Barra de búsqueda (siempre visible)
+            SearchBar(
+                query = state.searchQuery,
+                onQueryChange = viewModel::onSearchQueryChange
+            )
+
+            // Contenido
+            when {
+                state.isLoading -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
                 }
-            }
-            // Lista vacía
-            else if (state.filteredItems.isEmpty() && state.items.isEmpty()) {
-                EmptyPantry(onAddClick = onNavigateToAdd)
-            }
-            // Lista con búsqueda sin resultados
-            else if (state.filteredItems.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "No se encontraron productos",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
+                state.filteredItems.isEmpty() && state.items.isEmpty() -> {
+                    EmptyPantry(onAddClick = onNavigateToAdd)
                 }
-            }
-            // Lista de productos
-            else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(state.filteredItems, key = { it.id }) { item ->
-                        PantryItemCard(
-                            item = item,
-                            onStatusClick = { viewModel.showStatusDialog(item) },
-                            onDeleteClick = { viewModel.showDeleteDialog(item) }
+                state.filteredItems.isEmpty() -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No se encontraron productos",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
+                    }
+                }
+                else -> {
+                    // Contador de productos
+                    Text(
+                        text = "${state.filteredItems.size} productos",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                    )
+
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(state.filteredItems, key = { it.id }) { item ->
+                            PantryItemCard(
+                                item = item,
+                                onStatusClick = { viewModel.showStatusDialog(item) },
+                                onDeleteClick = { viewModel.showDeleteDialog(item) }
+                            )
+                        }
                     }
                 }
             }
@@ -161,14 +170,16 @@ fun PantryScreen(
 @Composable
 fun CategoryChips(
     selectedCategory: String?,
-    onCategorySelected: (String?) -> Unit,
-    categories: List<String>
+    onCategorySelected: (String?) -> Unit
 ) {
+    val categories = listOf(
+        "Lácteos", "Carnes", "Pescados", "Pastas y Arroces",
+        "Verduras y Hortalizas", "Frutas", "Bebidas", "Limpieza", "Bazar", "Otros"
+    )
+
     LazyRow(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        contentPadding = PaddingValues(horizontal = 16.dp),
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         item {
@@ -181,7 +192,11 @@ fun CategoryChips(
         items(categories) { category ->
             FilterChip(
                 selected = selectedCategory == category,
-                onClick = { onCategorySelected(category) },
+                onClick = {
+                    onCategorySelected(
+                        if (selectedCategory == category) null else category
+                    )
+                },
                 label = { Text(category) }
             )
         }
@@ -189,38 +204,62 @@ fun CategoryChips(
 }
 
 @Composable
-fun EmptyPantry(onAddClick: () -> Unit) {
-    Column(
+fun SearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit
+) {
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
         modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        placeholder = { Text("Buscar producto...") },
+        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+        trailingIcon = {
+            if (query.isNotBlank()) {
+                IconButton(onClick = { onQueryChange("") }) {
+                    Icon(Icons.Default.Close, contentDescription = "Limpiar búsqueda")
+                }
+            }
+        },
+        singleLine = true
+    )
+}
+
+@Composable
+fun EmptyPantry(onAddClick: () -> Unit) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
     ) {
-        Icon(
-            Icons.Outlined.Inventory,
-            contentDescription = null,
-            modifier = Modifier.size(120.dp),
-            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
-        )
-        Spacer(modifier = Modifier.height(24.dp))
-        Text(
-            text = "Tu despensa está vacía",
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Center
-        )
-        Text(
-            text = "Añade productos para empezar a gestionar tu inventario",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(32.dp))
-        Button(onClick = onAddClick) {
-            Icon(Icons.Default.Add, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Añadir mi primer producto")
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Kitchen,
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Tu despensa está vacía",
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Añade productos para empezar",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            Button(onClick = onAddClick) {
+                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Añadir producto")
+            }
         }
     }
 }
@@ -231,6 +270,16 @@ fun PantryItemCard(
     onStatusClick: () -> Unit,
     onDeleteClick: () -> Unit
 ) {
+    val statusColor by animateColorAsState(
+        targetValue = when (item.status) {
+            ProductStatus.COMPLETO -> MaterialTheme.colorScheme.primary
+            ProductStatus.MITAD -> MaterialTheme.colorScheme.tertiary
+            ProductStatus.CASI_AGOTADO -> MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
+            ProductStatus.AGOTADO -> MaterialTheme.colorScheme.error
+        },
+        label = "statusColor"
+    )
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -240,21 +289,31 @@ fun PantryItemCard(
     ) {
         Row(
             modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
+                .fillMaxWidth()
+                .clickable { onStatusClick() }
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Indicador de estado
+            Box(
+                modifier = Modifier
+                    .size(12.dp)
+                    .background(
+                        color = statusColor,
+                        shape = MaterialTheme.shapes.small
+                    )
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // Información del producto
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = item.name,
                     style = MaterialTheme.typography.titleMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = "${item.category} > ${item.subcategory}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
                 if (item.format.isNotBlank()) {
                     Text(
@@ -263,44 +322,30 @@ fun PantryItemCard(
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
                 }
-            }
-
-            // Status indicator
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier
-                    .padding(horizontal = 8.dp)
-                    .clickable { onStatusClick() }
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .background(
-                            color = getStatusColor(item.status).copy(alpha = 0.1f),
-                            shape = CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(
-                        progress = { item.status.percentage },
-                        modifier = Modifier.size(32.dp),
-                        color = getStatusColor(item.status),
-                        strokeWidth = 4.dp,
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = item.status.label,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = statusColor
                     )
+                    if (item.notes.isNotBlank()) {
+                        Text(
+                            text = " · ${item.notes}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
-                Text(
-                    text = item.status.label,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = getStatusColor(item.status)
-                )
             }
 
+            // Botón eliminar
             IconButton(onClick = onDeleteClick) {
                 Icon(
-                    Icons.Default.Delete,
-                    contentDescription = "Eliminar",
-                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f)
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Eliminar producto",
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                 )
             }
         }
@@ -316,15 +361,21 @@ fun StatusDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Estado de \"${item.name}\"") },
+        title = { Text(item.name) },
         text = {
             Column {
+                Text(
+                    text = "Selecciona el estado del producto:",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
                 ProductStatus.entries.forEach { status ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { onStatusSelected(status) }
-                            .padding(vertical = 12.dp, horizontal = 8.dp),
+                            .padding(vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         RadioButton(
@@ -332,24 +383,19 @@ fun StatusDialog(
                             onClick = { onStatusSelected(status) }
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = status.label)
+                        Text(
+                            text = status.label,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
                     }
                 }
             }
         },
-        confirmButton = {
+        confirmButton = {},
+        dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cerrar")
+                Text("Cancelar")
             }
         }
     )
-}
-
-fun getStatusColor(status: ProductStatus): Color {
-    return when (status) {
-        ProductStatus.COMPLETO -> Color(0xFF4CAF50)
-        ProductStatus.MITAD -> Color(0xFFFFC107)
-        ProductStatus.CASI_AGOTADO -> Color(0xFFFF9800)
-        ProductStatus.AGOTADO -> Color(0xFFF44336)
-    }
 }
