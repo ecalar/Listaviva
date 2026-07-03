@@ -5,6 +5,8 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.ecalar.listaviva.ui.screens.auth.AuthScreen
+import com.ecalar.listaviva.ui.screens.family.create.CreateFamilyScreen
+import com.ecalar.listaviva.ui.screens.family.join.JoinFamilyScreen
 import com.ecalar.listaviva.ui.screens.home.HomeScreen
 import com.ecalar.listaviva.ui.screens.splash.SplashScreen
 
@@ -12,6 +14,8 @@ object Routes {
     const val SPLASH = "splash"
     const val HOME = "home"
     const val AUTH = "auth"
+    const val CREATE_FAMILY = "create_family"
+    const val JOIN_FAMILY = "join_family"
 }
 
 @Composable
@@ -42,10 +46,30 @@ fun NavGraph(navController: NavHostController) {
         composable(Routes.AUTH) {
             AuthScreen(
                 onCreateFamily = {
-                    // TODO: Implementar en Hito 2
+                    navController.navigate(Routes.CREATE_FAMILY)
                 },
                 onJoinFamily = {
-                    // TODO: Implementar en Hito 2
+                    navController.navigate(Routes.JOIN_FAMILY)
+                }
+            )
+        }
+
+        composable(Routes.CREATE_FAMILY) {
+            CreateFamilyScreen(
+                onNavigateToHome = {
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(Routes.AUTH) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        composable(Routes.JOIN_FAMILY) {
+            JoinFamilyScreen(
+                onNavigateToHome = {
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(Routes.AUTH) { inclusive = true }
+                    }
                 }
             )
         }
