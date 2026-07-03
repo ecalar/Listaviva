@@ -1,5 +1,6 @@
 package com.ecalar.listaviva.ui.screens.family.create
 
+import android.content.Intent
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
@@ -9,10 +10,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.ecalar.listaviva.ui.components.QRCodeImage
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -23,14 +26,12 @@ fun CreateFamilyScreen(
     val state by viewModel.state.collectAsState()
 
     if (state.createdFamilyCode != null) {
-        // Mostrar código generado
         FamilyCreatedScreen(
             familyName = state.createdFamilyName ?: "",
             inviteCode = state.createdFamilyCode!!,
             onGoToHome = onNavigateToHome
         )
     } else {
-        // Formulario de creación
         Scaffold(
             topBar = {
                 TopAppBar(
@@ -102,6 +103,7 @@ fun FamilyCreatedScreen(
     onGoToHome: () -> Unit
 ) {
     val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -124,18 +126,37 @@ fun FamilyCreatedScreen(
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            Text(
-                text = "Comparte este código con los miembros de tu grupo:",
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-            )
+            // Código QR
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    QRCodeImage(
+                        content = inviteCode,
+                        size = 200.dp
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Código de invitación
+            // Código en texto
+            Text(
+                text = "O comparte este código:",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
@@ -158,6 +179,7 @@ fun FamilyCreatedScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            // Botones de acción
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -178,7 +200,19 @@ fun FamilyCreatedScreen(
                 }
 
                 Button(
-                    onClick = { /* TODO: Implementar share nativo */ },
+                    onClick = {
+                        val shareIntent = Intent().apply {
+                            action = Intent.ACTION_SEND
+                            putExtra(
+                                Intent.EXTRA_TEXT,
+                                "Únete a mi despensa en Listaviva con el código: $inviteCode"
+                            )
+                            type = "text/plain"
+                        }
+                        context.startActivity(
+                            Intent.createChooser(shareIntent, "Compartir código")
+                        )
+                    },
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(

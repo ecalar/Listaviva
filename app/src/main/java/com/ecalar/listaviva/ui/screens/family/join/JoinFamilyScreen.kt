@@ -15,7 +15,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 @Composable
 fun JoinFamilyScreen(
     viewModel: JoinFamilyViewModel = hiltViewModel(),
-    onNavigateToHome: () -> Unit
+    onNavigateToHome: () -> Unit,
+    onNavigateToScanner: () -> Unit
 ) {
     val state by viewModel.state.collectAsState()
 
@@ -89,7 +90,7 @@ fun JoinFamilyScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             OutlinedButton(
-                onClick = { /* TODO: Implementar escáner QR en Hito 3 */ },
+                onClick = onNavigateToScanner,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Icon(

@@ -8,6 +8,7 @@ import com.ecalar.listaviva.ui.screens.auth.AuthScreen
 import com.ecalar.listaviva.ui.screens.family.create.CreateFamilyScreen
 import com.ecalar.listaviva.ui.screens.family.join.JoinFamilyScreen
 import com.ecalar.listaviva.ui.screens.home.HomeScreen
+import com.ecalar.listaviva.ui.screens.scanner.QRScannerScreen
 import com.ecalar.listaviva.ui.screens.splash.SplashScreen
 
 object Routes {
@@ -16,6 +17,7 @@ object Routes {
     const val AUTH = "auth"
     const val CREATE_FAMILY = "create_family"
     const val JOIN_FAMILY = "join_family"
+    const val QR_SCANNER = "qr_scanner"
 }
 
 @Composable
@@ -70,6 +72,23 @@ fun NavGraph(navController: NavHostController) {
                     navController.navigate(Routes.HOME) {
                         popUpTo(Routes.AUTH) { inclusive = true }
                     }
+                },
+                onNavigateToScanner = {
+                    navController.navigate(Routes.QR_SCANNER)
+                }
+            )
+        }
+
+        composable(Routes.QR_SCANNER) {
+            QRScannerScreen(
+                onQrScanned = { code ->
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("scanned_code", code)
+                    navController.popBackStack()
+                },
+                onNavigateBack = {
+                    navController.popBackStack()
                 }
             )
         }
