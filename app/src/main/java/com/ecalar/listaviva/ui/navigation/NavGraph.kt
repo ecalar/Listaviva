@@ -15,6 +15,7 @@ import com.ecalar.listaviva.ui.screens.pantry.PantryScreen
 import com.ecalar.listaviva.ui.screens.pantry.PantryViewModel
 import com.ecalar.listaviva.ui.screens.pantry.add.AddProductScreen
 import com.ecalar.listaviva.ui.screens.scanner.QRScannerScreen
+import com.ecalar.listaviva.ui.screens.settings.SettingsScreen
 import com.ecalar.listaviva.ui.screens.shopping.detail.AddItemToListScreen
 import com.ecalar.listaviva.ui.screens.shopping.ShoppingListsScreen
 import com.ecalar.listaviva.ui.screens.shopping.ShoppingListsViewModel
@@ -154,7 +155,7 @@ fun NavGraph(navController: NavHostController) {
 
             AddItemToListScreen(
                 pantryItems = pantryItems.items,
-                onAddFromPantry = { pantryItem ->
+                onAddFromPantry = { pantryItem: com.ecalar.listaviva.domain.model.PantryItem ->
                     shoppingViewModel.addItemToList(
                         name = pantryItem.name,
                         pantryItemId = pantryItem.id,
@@ -162,7 +163,7 @@ fun NavGraph(navController: NavHostController) {
                     )
                     navController.popBackStack()
                 },
-                onAddManual = { name ->
+                onAddManual = { name: String ->
                     shoppingViewModel.addItemToList(name = name, pantryItemId = null)
                     navController.popBackStack()
                 },
@@ -171,17 +172,13 @@ fun NavGraph(navController: NavHostController) {
         }
 
         composable(Routes.SETTINGS) {
-            SettingsPlaceholder()
+            SettingsScreen(
+                onNavigateToAuth = {
+                    navController.navigate(Routes.AUTH) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
         }
     }
-}
-
-@Composable
-fun ShoppingListsPlaceholder() {
-    androidx.compose.material3.Text("Listas de la compra - Próximamente")
-}
-
-@Composable
-fun SettingsPlaceholder() {
-    androidx.compose.material3.Text("Ajustes - Próximamente")
 }

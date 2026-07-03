@@ -7,9 +7,7 @@ import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.outlined.Kitchen
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -18,6 +16,8 @@ fun HomeScreen(
     onNavigateToShoppingList: () -> Unit,
     onNavigateToSettings: () -> Unit
 ) {
+    var selectedTab by remember { mutableIntStateOf(0) }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -34,35 +34,29 @@ fun HomeScreen(
                 NavigationBarItem(
                     icon = { Icon(Icons.Outlined.Kitchen, contentDescription = null) },
                     label = { Text("Despensa") },
-                    selected = true,
-                    onClick = onNavigateToPantry
+                    selected = selectedTab == 0,
+                    onClick = {
+                        selectedTab = 0
+                        onNavigateToPantry()
+                    }
                 )
                 NavigationBarItem(
                     icon = { Icon(Icons.Default.ShoppingCart, contentDescription = null) },
                     label = { Text("Listas") },
-                    selected = false,
-                    onClick = onNavigateToShoppingList
+                    selected = selectedTab == 1,
+                    onClick = {
+                        selectedTab = 1
+                        onNavigateToShoppingList()
+                    }
                 )
             }
         }
     ) { padding ->
-        PantryScreen(
-            modifier = Modifier.padding(padding),
-            onNavigateToAdd = { /* Navegar a añadir producto */ }
-        )
-    }
-}
-
-@Composable
-fun PantryScreen(
-    modifier: Modifier = Modifier,
-    onNavigateToAdd: () -> Unit
-) {
-    // Placeholder - se reemplazará con la PantryScreen real
-    Box(
-        modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Text("Pantalla de Despensa")
+        Box(modifier = Modifier.padding(padding)) {
+            when (selectedTab) {
+                0 -> Text("Despensa - Usa el botón para navegar", modifier = Modifier.fillMaxSize())
+                1 -> Text("Listas - Usa el botón para navegar", modifier = Modifier.fillMaxSize())
+            }
+        }
     }
 }
