@@ -1,6 +1,7 @@
 package com.ecalar.listaviva.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -11,6 +12,7 @@ import com.ecalar.listaviva.ui.screens.auth.AuthScreen
 import com.ecalar.listaviva.ui.screens.family.create.CreateFamilyScreen
 import com.ecalar.listaviva.ui.screens.family.join.JoinFamilyScreen
 import com.ecalar.listaviva.ui.screens.home.HomeScreen
+import com.ecalar.listaviva.ui.screens.onboarding.OnboardingScreen
 import com.ecalar.listaviva.ui.screens.pantry.PantryScreen
 import com.ecalar.listaviva.ui.screens.pantry.PantryViewModel
 import com.ecalar.listaviva.ui.screens.pantry.add.AddProductScreen
@@ -20,9 +22,11 @@ import com.ecalar.listaviva.ui.screens.shopping.detail.AddItemToListScreen
 import com.ecalar.listaviva.ui.screens.shopping.ShoppingListsScreen
 import com.ecalar.listaviva.ui.screens.shopping.ShoppingListsViewModel
 import com.ecalar.listaviva.ui.screens.splash.SplashScreen
+import com.ecalar.listaviva.ui.screens.stats.StatsScreen
 
 object Routes {
     const val SPLASH = "splash"
+    const val ONBOARDING = "onboarding"
     const val HOME = "home"
     const val AUTH = "auth"
     const val CREATE_FAMILY = "create_family"
@@ -33,6 +37,7 @@ object Routes {
     const val SHOPPING_LISTS = "shopping_lists"
     const val ADD_TO_LIST = "add_to_list"
     const val SETTINGS = "settings"
+    const val STATS = "stats"
 }
 
 @Composable
@@ -51,6 +56,21 @@ fun NavGraph(navController: NavHostController) {
                 onNavigateToAuth = {
                     navController.navigate(Routes.AUTH) {
                         popUpTo(Routes.SPLASH) { inclusive = true }
+                    }
+                },
+                onNavigateToOnboarding = {
+                    navController.navigate(Routes.ONBOARDING) {
+                        popUpTo(Routes.SPLASH) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        composable(Routes.ONBOARDING) {
+            OnboardingScreen(
+                onFinish = {
+                    navController.navigate(Routes.AUTH) {
+                        popUpTo(Routes.ONBOARDING) { inclusive = true }
                     }
                 }
             )
@@ -119,7 +139,30 @@ fun NavGraph(navController: NavHostController) {
         }
 
         composable(Routes.PANTRY) {
+            val pantryViewModel: PantryViewModel = hiltViewModel()
+            val state by pantryViewModel.state.collectAsState()
+
+            // Escuchar nuevo producto añadido desde AddProductScreen
+            val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle
+            val newProduct = savedStateHandle?.getLiveData<List<String>>("new_product")
+
+            LaunchedEffect(newProduct?.value) {
+                newProduct?.value?.let { productData ->
+                    if (productData.size >= 5) {
+                        pantryViewModel.addItem(
+                            name = productData[0],
+                            category = productData[1],
+                            subcategory = productData[2],
+                            format = productData[3],
+                            notes = productData[4]
+                        )
+                        savedStateHandle.remove<List<String>>("new_product")
+                    }
+                }
+            }
+
             PantryScreen(
+                viewModel = pantryViewModel,
                 onNavigateToAdd = {
                     navController.navigate(Routes.ADD_PRODUCT)
                 }
@@ -179,6 +222,10 @@ fun NavGraph(navController: NavHostController) {
                     }
                 }
             )
+        }
+
+        composable(Routes.STATS) {
+            StatsScreen()
         }
     }
 }

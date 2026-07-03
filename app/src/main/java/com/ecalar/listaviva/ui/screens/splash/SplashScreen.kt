@@ -4,7 +4,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -16,18 +16,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import kotlinx.coroutines.flow.first
 
 @Composable
 fun SplashScreen(
     viewModel: SplashViewModel = hiltViewModel(),
     onNavigateToHome: () -> Unit,
-    onNavigateToAuth: () -> Unit
+    onNavigateToAuth: () -> Unit,
+    onNavigateToOnboarding: () -> Unit
 ) {
     val state by viewModel.state.collectAsState()
 
     LaunchedEffect(state) {
         when (state) {
             is SplashState.Authenticated -> onNavigateToHome()
+            is SplashState.AuthenticatedNoFamily -> onNavigateToAuth()
             is SplashState.NotAuthenticated -> onNavigateToAuth()
             else -> {}
         }
@@ -55,7 +58,7 @@ fun SplashScreen(
             verticalArrangement = Arrangement.Center
         ) {
             Icon(
-                imageVector = Icons.Default.Check,
+                imageVector = Icons.Default.Checklist,
                 contentDescription = "Listaviva",
                 tint = MaterialTheme.colorScheme.onPrimary,
                 modifier = Modifier.size(80.dp)
