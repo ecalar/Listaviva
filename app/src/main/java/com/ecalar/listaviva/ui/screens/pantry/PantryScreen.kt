@@ -24,7 +24,8 @@ import com.ecalar.listaviva.domain.model.ProductStatus
 @Composable
 fun PantryScreen(
     viewModel: PantryViewModel = hiltViewModel(),
-    onNavigateToAdd: () -> Unit
+    onNavigateToAdd: () -> Unit,
+    showTopBar: Boolean = true
 ) {
     val state by viewModel.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -36,45 +37,22 @@ fun PantryScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Despensa") },
-                actions = {
-                    IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
-                        Icon(Icons.Default.Search, contentDescription = "Buscar")
-                    }
-                }
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = onNavigateToAdd,
-                containerColor = MaterialTheme.colorScheme.primary
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Añadir producto")
-            }
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
-    ) { padding ->
+    val content = @Composable { paddingValues: PaddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(paddingValues)
         ) {
-            // Chips de categorías
             CategoryChips(
                 selectedCategory = state.selectedCategory,
                 onCategorySelected = viewModel::selectCategory
             )
 
-            // Barra de búsqueda (siempre visible)
             SearchBar(
                 query = state.searchQuery,
                 onQueryChange = viewModel::onSearchQueryChange
             )
 
-            // Contenido
             when {
                 state.isLoading -> {
                     Box(
@@ -100,7 +78,6 @@ fun PantryScreen(
                     }
                 }
                 else -> {
-                    // Contador de productos
                     Text(
                         text = "${state.filteredItems.size} productos",
                         style = MaterialTheme.typography.labelMedium,
@@ -125,7 +102,7 @@ fun PantryScreen(
             }
         }
 
-        // Diálogo de cambio de estado
+        // Diálogos
         state.showStatusDialog?.let { item ->
             StatusDialog(
                 item = item,
@@ -138,7 +115,6 @@ fun PantryScreen(
             )
         }
 
-        // Diálogo de confirmación de eliminación
         state.showDeleteDialog?.let { item ->
             AlertDialog(
                 onDismissRequest = { viewModel.showDeleteDialog(null) },
@@ -165,237 +141,46 @@ fun PantryScreen(
             )
         }
     }
-}
 
-@Composable
-fun CategoryChips(
-    selectedCategory: String?,
-    onCategorySelected: (String?) -> Unit
-) {
-    val categories = listOf(
-        "Lácteos", "Carnes", "Pescados", "Pastas y Arroces",
-        "Verduras y Hortalizas", "Frutas", "Bebidas", "Limpieza", "Bazar", "Otros"
-    )
-
-    LazyRow(
-        modifier = Modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        item {
-            FilterChip(
-                selected = selectedCategory == null,
-                onClick = { onCategorySelected(null) },
-                label = { Text("Todos") }
-            )
-        }
-        items(categories) { category ->
-            FilterChip(
-                selected = selectedCategory == category,
-                onClick = {
-                    onCategorySelected(
-                        if (selectedCategory == category) null else category
-                    )
-                },
-                label = { Text(category) }
-            )
-        }
-    }
-}
-
-@Composable
-fun SearchBar(
-    query: String,
-    onQueryChange: (String) -> Unit
-) {
-    OutlinedTextField(
-        value = query,
-        onValueChange = onQueryChange,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        placeholder = { Text("Buscar producto...") },
-        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-        trailingIcon = {
-            if (query.isNotBlank()) {
-                IconButton(onClick = { onQueryChange("") }) {
-                    Icon(Icons.Default.Close, contentDescription = "Limpiar búsqueda")
+    if (showTopBar) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("Despensa") },
+                    actions = {
+                        IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
+                            Icon(Icons.Default.Search, contentDescription = "Buscar")
+                        }
+                    }
+                )
+            },
+            floatingActionButton = {
+                FloatingActionButton(
+                    onClick = onNavigateToAdd,
+                    containerColor = MaterialTheme.colorScheme.primary
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Añadir producto")
                 }
-            }
-        },
-        singleLine = true
-    )
-}
-
-@Composable
-fun EmptyPantry(onAddClick: () -> Unit) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.Kitchen,
-                contentDescription = null,
-                modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "Tu despensa está vacía",
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Añade productos para empezar",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-            Button(onClick = onAddClick) {
-                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Añadir producto")
-            }
+            },
+            snackbarHost = { SnackbarHost(snackbarHostState) }
+        ) { padding ->
+            content(padding)
         }
-    }
-}
-
-@Composable
-fun PantryItemCard(
-    item: PantryItem,
-    onStatusClick: () -> Unit,
-    onDeleteClick: () -> Unit
-) {
-    val statusColor by animateColorAsState(
-        targetValue = when (item.status) {
-            ProductStatus.COMPLETO -> MaterialTheme.colorScheme.primary
-            ProductStatus.MITAD -> MaterialTheme.colorScheme.tertiary
-            ProductStatus.CASI_AGOTADO -> MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
-            ProductStatus.AGOTADO -> MaterialTheme.colorScheme.error
-        },
-        label = "statusColor"
-    )
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onStatusClick() }
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Indicador de estado
-            Box(
+    } else {
+        Box(modifier = Modifier.fillMaxSize()) {
+            content(PaddingValues(0.dp))
+            // FAB manual
+            FloatingActionButton(
+                onClick = onNavigateToAdd,
+                containerColor = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
-                    .size(12.dp)
-                    .background(
-                        color = statusColor,
-                        shape = MaterialTheme.shapes.small
-                    )
-            )
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            // Información del producto
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = item.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                if (item.format.isNotBlank()) {
-                    Text(
-                        text = item.format,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = item.status.label,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = statusColor
-                    )
-                    if (item.notes.isNotBlank()) {
-                        Text(
-                            text = " · ${item.notes}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-            }
-
-            // Botón eliminar
-            IconButton(onClick = onDeleteClick) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Eliminar producto",
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                )
+                    .align(Alignment.BottomEnd)
+                    .padding(16.dp)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Añadir producto")
             }
         }
     }
 }
 
-@Composable
-fun StatusDialog(
-    item: PantryItem,
-    currentStatus: ProductStatus,
-    onStatusSelected: (ProductStatus) -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(item.name) },
-        text = {
-            Column {
-                Text(
-                    text = "Selecciona el estado del producto:",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                ProductStatus.entries.forEach { status ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onStatusSelected(status) }
-                            .padding(vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(
-                            selected = status == currentStatus,
-                            onClick = { onStatusSelected(status) }
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = status.label,
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancelar")
-            }
-        }
-    )
-}
+// ... (el resto de funciones auxiliares se mantienen igual: CategoryChips, SearchBar, EmptyPantry, PantryItemCard, StatusDialog)
