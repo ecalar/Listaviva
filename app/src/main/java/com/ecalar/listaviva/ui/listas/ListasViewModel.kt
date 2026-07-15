@@ -111,7 +111,6 @@ class ListasViewModel @Inject constructor(
         val currentState = _uiState.value as? ListasState.Success ?: return
 
         val itemsAComprar = currentState.itemsPendientes.filter { _itemsSeleccionados.value.contains(it.id) }
-
         if (itemsAComprar.isEmpty()) return
 
         viewModelScope.launch {
@@ -119,17 +118,16 @@ class ListasViewModel @Inject constructor(
                 // 1. Lo marcamos como comprado en la lista
                 listaCompraRepository.marcarItemComprado(familiaId, listaId, item.id, true)
 
-                // 2. Si venía de la despensa, lo reponemos a COMPLETO
+                // 2. Ejecutamos la transacción en la despensa pasándole la cantidad comprada
                 if (item.despensaProductoId != null) {
-                    despensaRepository.updateEstadoProducto(
+                    despensaRepository.registrarCompra(
                         familiaId,
                         item.despensaProductoId,
-                        EstadoProducto.COMPLETO.name.lowercase()
+                        item.cantidadAComprar // Aquí inyectamos el valor del stepper
                     )
                 }
             }
-
-            // Limpiamos la selección tras el éxito
+            // Limpiamos la selección
             _itemsSeleccionados.value = emptySet()
         }
     }
@@ -156,6 +154,18 @@ class ListasViewModel @Inject constructor(
                 nombre = nombre
             )
             listaCompraRepository.crearLista(familiaId, nuevaLista)
+        }
+    }
+
+    fun cambiarCantidadItem(item: ItemLista, incremento: Int) {
+        val familiaId = preferencesRepository.getFamiliaId() ?: return
+        val listaId = (_uiState.value as? ListasState.Success)?.listaSeleccionada?.id ?: return
+
+        // No permitimos comprar menos de 1 unidad
+        val nuevaCantidad = (item.cantidadAComprar + incremento).coerceAtLeast(1)
+
+        viewModelScope.launch {
+            listaCompraRepository.updateCantidadItem(familiaId, listaId, item.id, nuevaCantidad)
         }
     }
 }

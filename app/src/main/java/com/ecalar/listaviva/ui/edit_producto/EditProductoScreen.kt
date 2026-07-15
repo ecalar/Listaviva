@@ -1,14 +1,19 @@
 package com.ecalar.listaviva.ui.edit_producto
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -26,13 +31,13 @@ fun EditProductoScreen(
     var nombre by remember { mutableStateOf("") }
     var categoria by remember { mutableStateOf("") }
     var formato by remember { mutableStateOf("") }
+    var cantidadActual by remember { mutableStateOf(0) } // <-- NUEVO
     var datosCargados by remember { mutableStateOf(false) }
 
     val backgroundColor = MaterialTheme.colorScheme.background
     val actionColor = MaterialTheme.colorScheme.primary
     val surfaceColor = MaterialTheme.colorScheme.surface
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
-    val onPrimaryColor = MaterialTheme.colorScheme.onPrimary
 
     LaunchedEffect(productoId) {
         viewModel.cargarProducto(productoId)
@@ -43,6 +48,7 @@ fun EditProductoScreen(
             nombre = it.nombre
             categoria = it.categoria
             formato = it.formato
+            cantidadActual = it.cantidadActual // <-- NUEVO
             datosCargados = true
         }
     }
@@ -82,12 +88,7 @@ fun EditProductoScreen(
                             label = { Text("Nombre del producto*", fontWeight = FontWeight.Bold) },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = onSurfaceColor,
-                                unfocusedBorderColor = onSurfaceColor.copy(alpha = 0.5f),
-                                focusedTextColor = onSurfaceColor,
-                                unfocusedTextColor = onSurfaceColor
-                            )
+                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = onSurfaceColor, focusedTextColor = onSurfaceColor)
                         )
                         OutlinedTextField(
                             value = categoria,
@@ -95,12 +96,7 @@ fun EditProductoScreen(
                             label = { Text("Categoría (Ej: Lácteos)", fontWeight = FontWeight.Bold) },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = onSurfaceColor,
-                                unfocusedBorderColor = onSurfaceColor.copy(alpha = 0.5f),
-                                focusedTextColor = onSurfaceColor,
-                                unfocusedTextColor = onSurfaceColor
-                            )
+                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = onSurfaceColor, focusedTextColor = onSurfaceColor)
                         )
                         OutlinedTextField(
                             value = formato,
@@ -108,13 +104,40 @@ fun EditProductoScreen(
                             label = { Text("Formato (Ej: 1 Litro)", fontWeight = FontWeight.Bold) },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = onSurfaceColor,
-                                unfocusedBorderColor = onSurfaceColor.copy(alpha = 0.5f),
-                                focusedTextColor = onSurfaceColor,
-                                unfocusedTextColor = onSurfaceColor
-                            )
+                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = onSurfaceColor, focusedTextColor = onSurfaceColor)
                         )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Ajustar Stock", fontWeight = FontWeight.Bold, color = onSurfaceColor)
+
+                        // Stepper de Edición
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(
+                                onClick = { if (cantidadActual > 0) cantidadActual-- },
+                                modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp)).size(40.dp).border(2.dp, onSurfaceColor, RoundedCornerShape(8.dp))
+                            ) {
+                                Icon(Icons.Default.Remove, "Quitar", tint = onSurfaceColor)
+                            }
+
+                            Text(
+                                text = "$cantidadActual",
+                                modifier = Modifier.padding(horizontal = 32.dp),
+                                style = MaterialTheme.typography.headlineLarge,
+                                fontWeight = FontWeight.Black,
+                                color = onSurfaceColor
+                            )
+
+                            IconButton(
+                                onClick = { cantidadActual++ },
+                                modifier = Modifier.background(actionColor, RoundedCornerShape(8.dp)).size(40.dp).border(2.dp, onSurfaceColor, RoundedCornerShape(8.dp))
+                            ) {
+                                Icon(Icons.Default.Add, "Añadir", tint = MaterialTheme.colorScheme.onPrimary)
+                            }
+                        }
                     }
                 }
 
@@ -122,11 +145,12 @@ fun EditProductoScreen(
 
                 Button(
                     onClick = {
-                        viewModel.guardarCambios(nombre, categoria, formato)
+                        // Pasamos la cantidadActual
+                        viewModel.guardarCambios(nombre, categoria, formato, cantidadActual)
                         onNavigateBack()
                     },
                     modifier = Modifier.fillMaxWidth().neoBrutalism(cornerRadius = 12.dp, shadowOffset = 6.dp, borderColor = onSurfaceColor, shadowColor = onSurfaceColor),
-                    colors = ButtonDefaults.buttonColors(containerColor = actionColor, contentColor = onPrimaryColor),
+                    colors = ButtonDefaults.buttonColors(containerColor = actionColor, contentColor = MaterialTheme.colorScheme.onPrimary),
                     shape = RoundedCornerShape(12.dp),
                     contentPadding = PaddingValues(16.dp)
                 ) {

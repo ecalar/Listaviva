@@ -1,6 +1,7 @@
 package com.ecalar.listaviva.ui.despensa
 
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,6 +17,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -31,7 +34,6 @@ import com.ecalar.listaviva.domain.model.EstadoProducto
 import com.ecalar.listaviva.domain.model.ListaCompra
 import com.ecalar.listaviva.domain.model.ProductoDespensa
 import com.ecalar.listaviva.ui.theme.neoBrutalism
-import androidx.compose.foundation.BorderStroke
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -202,20 +204,18 @@ fun DespensaScreen(
                                 verticalArrangement = Arrangement.spacedBy(16.dp),
                                 modifier = Modifier.fillMaxSize()
                             ) {
-                                items(productosAMostrar) { producto ->
+                                items(productosAMostrar, key = { it.id }) { producto ->
                                     ProductoNeoCard(
                                         producto = producto,
-                                        onEstadoChange = { accion ->
-                                            when (accion) {
-                                                "EDITAR_NAVEGACION" -> onNavigateToEditProduct(producto.id)
-                                                "ELIMINAR_PRODUCTO" -> viewModel.eliminarProducto(producto.id)
-                                                EstadoProducto.AGOTADO.name.lowercase() -> {
-                                                    productoAAgotar = producto
-                                                    showDialog = true
-                                                }
-                                                else -> viewModel.cambiarEstadoProducto(producto.id, accion)
-                                            }
-                                        }
+                                        onCantidadChange = { incremento ->
+                                            viewModel.cambiarCantidad(producto, incremento)
+                                        },
+                                        onAgotar = {
+                                            productoAAgotar = producto
+                                            showDialog = true
+                                        },
+                                        onEditar = { onNavigateToEditProduct(producto.id) },
+                                        onEliminar = { viewModel.eliminarProducto(producto.id) }
                                     )
                                 }
                             }
@@ -311,7 +311,10 @@ fun DespensaScreen(
 @Composable
 fun ProductoNeoCard(
     producto: ProductoDespensa,
-    onEstadoChange: (String) -> Unit
+    onCantidadChange: (Int) -> Unit,
+    onAgotar: () -> Unit,
+    onEditar: () -> Unit,
+    onEliminar: () -> Unit
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
 
@@ -325,11 +328,11 @@ fun ProductoNeoCard(
 
     val surfaceColor = MaterialTheme.colorScheme.surface
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
+    val actionColor = MaterialTheme.colorScheme.primary
 
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { menuExpanded = true }
             .padding(bottom = 6.dp, end = 6.dp)
             .neoBrutalism(cornerRadius = 12.dp, shadowOffset = 6.dp, borderColor = onSurfaceColor, shadowColor = onSurfaceColor),
         color = surfaceColor,
@@ -337,23 +340,75 @@ fun ProductoNeoCard(
     ) {
         Box {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = producto.nombre,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Black,
-                    maxLines = 1,
-                    color = onSurfaceColor
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = producto.formato.ifEmpty { "1 ud" },
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = onSurfaceColor.copy(alpha = 0.7f)
-                )
+
+                // CONTENEDOR CORREGIDO: Título y menú en la misma línea
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Text(
+                        text = "${producto.nombre} (${producto.formato.ifEmpty { "ud" }})",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Black,
+                        maxLines = 2,
+                        color = onSurfaceColor,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "Opciones",
+                        tint = onSurfaceColor,
+                        modifier = Modifier.clickable { menuExpanded = true }
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // STEPPER DE CANTIDAD
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = {
+                            if (producto.cantidadActual == 1) {
+                                onAgotar()
+                            } else if (producto.cantidadActual > 0) {
+                                onCantidadChange(-1)
+                            }
+                        },
+                        modifier = Modifier
+                            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
+                            .size(32.dp)
+                            .border(1.dp, onSurfaceColor, RoundedCornerShape(8.dp))
+                    ) {
+                        Icon(Icons.Default.Remove, "Quitar", tint = onSurfaceColor)
+                    }
+
+                    Text(
+                        text = "${producto.cantidadActual}",
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Black,
+                        color = onSurfaceColor
+                    )
+
+                    IconButton(
+                        onClick = { onCantidadChange(1) },
+                        modifier = Modifier
+                            .background(actionColor, RoundedCornerShape(8.dp))
+                            .size(32.dp)
+                            .border(1.dp, onSurfaceColor, RoundedCornerShape(8.dp))
+                    ) {
+                        Icon(Icons.Default.Add, "Añadir", tint = MaterialTheme.colorScheme.onPrimary)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // ESTADO VISUAL
                 Text(
                     text = textoEstado,
                     style = MaterialTheme.typography.labelSmall,
@@ -365,37 +420,27 @@ fun ProductoNeoCard(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(12.dp)
+                        .height(8.dp)
                         .clip(RoundedCornerShape(50))
                         .background(colorEstado)
-                        .border(2.dp, onSurfaceColor, RoundedCornerShape(50))
+                        .border(1.dp, onSurfaceColor, RoundedCornerShape(50))
                 )
             }
 
+            // MENÚ DESPLEGABLE
             DropdownMenu(
                 expanded = menuExpanded,
                 onDismissRequest = { menuExpanded = false },
                 modifier = Modifier.background(surfaceColor)
             ) {
-                DropdownMenuItem(text = { Text("Completo", fontWeight = FontWeight.Bold, color = onSurfaceColor) }, onClick = { menuExpanded = false; onEstadoChange(EstadoProducto.COMPLETO.name.lowercase()) })
-                DropdownMenuItem(text = { Text("Mitad", fontWeight = FontWeight.Bold, color = onSurfaceColor) }, onClick = { menuExpanded = false; onEstadoChange(EstadoProducto.MITAD.name.lowercase()) })
-                DropdownMenuItem(text = { Text("Casi agotado", fontWeight = FontWeight.Bold, color = onSurfaceColor) }, onClick = { menuExpanded = false; onEstadoChange(EstadoProducto.CASI_AGOTADO.name.lowercase()) })
-                DropdownMenuItem(text = { Text("Agotado", fontWeight = FontWeight.Bold, color = onSurfaceColor) }, onClick = { menuExpanded = false; onEstadoChange(EstadoProducto.AGOTADO.name.lowercase()) })
-                HorizontalDivider(color = onSurfaceColor, thickness = 1.dp)
-
                 DropdownMenuItem(
-                    text = { Text("Editar", fontWeight = FontWeight.Bold, color = onSurfaceColor) },
-                    onClick = {
-                        menuExpanded = false
-                        onEstadoChange("EDITAR_NAVEGACION")
-                    }
+                    text = { Text("Editar Producto", fontWeight = FontWeight.Bold, color = onSurfaceColor) },
+                    onClick = { menuExpanded = false; onEditar() }
                 )
+                HorizontalDivider(color = onSurfaceColor, thickness = 1.dp)
                 DropdownMenuItem(
                     text = { Text("Eliminar", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold) },
-                    onClick = {
-                        menuExpanded = false
-                        onEstadoChange("ELIMINAR_PRODUCTO")
-                    }
+                    onClick = { menuExpanded = false; onEliminar() }
                 )
             }
         }

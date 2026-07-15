@@ -15,7 +15,9 @@ data class ProductoDespensa(
     val categoria: String = "",
     val subcategoria: String = "",
     val formato: String = "",
-    val estado: String = EstadoProducto.COMPLETO.name.lowercase(), // "completo", "mitad", "casi_agotado", "agotado"
+    val estado: String = "", // "completo", "mitad", "casi_agotado", "agotado"
+    val cantidadActual: Int = 1,
+    val cantidadReferencia: Int = 1,
     val listaAsociada: String? = null,
     val añadidoPor: String = "",
     val ultimaModificacion: Date = Date(),

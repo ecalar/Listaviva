@@ -2,6 +2,7 @@ package com.ecalar.listaviva.ui.edit_producto
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ecalar.listaviva.domain.model.EstadoProducto
 import com.ecalar.listaviva.domain.model.ProductoDespensa
 import com.ecalar.listaviva.domain.repository.DespensaRepository
 import com.ecalar.listaviva.domain.repository.UserPreferencesRepository
@@ -47,22 +48,28 @@ class EditProductoViewModel @Inject constructor(
         }
     }
 
-    fun guardarCambios(nombre: String, categoria: String, formato: String) {
+    fun guardarCambios(nombre: String, categoria: String, formato: String, cantidadActual: Int) {
         val familiaId = preferencesRepository.getFamiliaId() ?: return
-        val prod = productoActual ?: return
-        _uiState.value = EditProductoState.Loading
+        val prodId = productoActual?.id ?: return
+
+        // Recalculamos el techo histórico
+        val refAnterior = productoActual?.cantidadReferencia ?: 1
+        val nuevaReferencia = if (cantidadActual > refAnterior) cantidadActual else refAnterior
+
+        // Calculamos el porcentaje
+        val porcentaje = if (nuevaReferencia > 0) (cantidadActual.toFloat() / nuevaReferencia.toFloat()) * 100 else 0f
+        val nuevoEstado = when {
+            cantidadActual <= 0 -> EstadoProducto.AGOTADO.name.lowercase()
+            porcentaje >= 60f -> EstadoProducto.COMPLETO.name.lowercase()
+            porcentaje >= 30f -> EstadoProducto.MITAD.name.lowercase()
+            else -> EstadoProducto.CASI_AGOTADO.name.lowercase()
+        }
 
         viewModelScope.launch {
-            // Reutilizamos addProducto, que sobrescribe si el ID ya existe
-            val productoActualizado = prod.copy(
-                nombre = nombre,
-                categoria = categoria,
-                formato = formato
+            despensaRepository.updateProductoCompleto(
+                familiaId, prodId, nombre, categoria, formato, cantidadActual, nuevaReferencia, nuevoEstado
             )
-            val result = despensaRepository.addProducto(familiaId, productoActualizado)
-
-            result.onSuccess { _uiState.value = EditProductoState.Success }
-            result.onFailure { _uiState.value = EditProductoState.Error("Error al guardar") }
+            _uiState.value = EditProductoState.Success
         }
     }
 }

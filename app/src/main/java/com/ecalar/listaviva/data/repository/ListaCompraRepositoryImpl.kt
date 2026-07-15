@@ -15,10 +15,8 @@ class ListaCompraRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore
 ) : ListaCompraRepository {
 
-    // Mantenemos tu ruta original "listasCompra" para no perder tus datos actuales
     private fun getListasRef(familiaId: String) =
         firestore.collection("familias").document(familiaId).collection("listasCompra")
-
     private fun getItemsRef(familiaId: String, listaId: String) =
         getListasRef(familiaId).document(listaId).collection("items")
 
@@ -106,6 +104,16 @@ class ListaCompraRepositoryImpl @Inject constructor(
         return try {
             getListasRef(familiaId).document(listaId)
                 .update("nombre", nuevoNombre).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun updateCantidadItem(familiaId: String, listaId: String, itemId: String, nuevaCantidad: Int): Result<Unit> {
+        return try {
+            getItemsRef(familiaId, listaId).document(itemId)
+                .update("cantidadAComprar", nuevaCantidad).await()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

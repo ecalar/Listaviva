@@ -83,7 +83,6 @@ class DespensaViewModel @Inject constructor(
     }
 
     private fun actualizarEstadoConFiltro(productos: List<ProductoDespensa>, categoria: String) {
-        // Extraemos las categorías únicas de los productos actuales
         val categoriasDinamicas =
             listOf("Todos") + productos.map { it.categoria }.distinct().filter { it.isNotBlank() }
                 .sorted()
@@ -113,16 +112,21 @@ class DespensaViewModel @Inject constructor(
         val alias = preferencesRepository.getAlias() ?: "Desconocido"
 
         viewModelScope.launch {
-            despensaRepository.updateEstadoProducto(
+            despensaRepository.actualizarStock(
                 familiaId,
                 producto.id,
-                EstadoProducto.AGOTADO.name.lowercase()
+                cantidadActual = 0,
+                cantidadReferencia = producto.cantidadReferencia,
+                estado = EstadoProducto.AGOTADO.name.lowercase()
             )
+
+            val cantidadAComprar = 1
 
             val nuevoItem = ItemLista(
                 nombre = producto.nombre,
                 despensaProductoId = producto.id,
                 cantidad = producto.formato,
+                cantidadAComprar = cantidadAComprar,
                 comprado = false,
                 aliasAñadidoPor = alias,
                 fechaAñadido = Date()
@@ -133,15 +137,50 @@ class DespensaViewModel @Inject constructor(
 
     fun comprobarEInicializarCatalogo(context: Context) {
         viewModelScope.launch {
-            // Llama a la función de tu repositorio.
-            // Cambia 'catalogoRepository' por el nombre de la variable que uses.
             catalogoRepository.inicializarCatalogo(context)
         }
     }
+
     fun eliminarProducto(productoId: String) {
         val familiaId = preferencesRepository.getFamiliaId() ?: return
         viewModelScope.launch {
             despensaRepository.deleteProducto(familiaId, productoId)
+        }
+    }
+
+    private fun calcularEstado(actual: Int, referencia: Int): String {
+        if (referencia <= 0 || actual <= 0) return EstadoProducto.AGOTADO.name.lowercase()
+        val porcentaje = (actual.toFloat() / referencia.toFloat()) * 100
+
+        return when {
+            porcentaje >= 60f -> EstadoProducto.COMPLETO.name.lowercase()
+            porcentaje >= 30f -> EstadoProducto.MITAD.name.lowercase()
+            else -> EstadoProducto.CASI_AGOTADO.name.lowercase()
+        }
+    }
+
+    fun cambiarCantidad(producto: ProductoDespensa, incremento: Int) {
+        val familiaId = preferencesRepository.getFamiliaId() ?: return
+
+        val nuevaCantidad = (producto.cantidadActual + incremento).coerceAtLeast(0)
+
+
+        val nuevaReferencia = if (incremento > 0) {
+            nuevaCantidad
+        } else {
+            producto.cantidadReferencia
+        }
+
+        val nuevoEstado = calcularEstado(nuevaCantidad, nuevaReferencia)
+
+        viewModelScope.launch {
+            despensaRepository.actualizarStock(
+                familiaId = familiaId,
+                productoId = producto.id,
+                cantidadActual = nuevaCantidad,
+                cantidadReferencia = nuevaReferencia,
+                estado = nuevoEstado
+            )
         }
     }
 }

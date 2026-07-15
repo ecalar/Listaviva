@@ -1,7 +1,12 @@
 package com.ecalar.listaviva.ui.navigation
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -11,12 +16,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.ecalar.listaviva.R
 import com.ecalar.listaviva.ui.add_producto.AddProductoScreen
 import com.ecalar.listaviva.ui.auth.AuthState
 import com.ecalar.listaviva.ui.auth.AuthViewModel
@@ -58,10 +66,29 @@ fun ListavivaNavigation() {
             }
 
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+
                 when (authState) {
-                    is AuthState.Loading -> CircularProgressIndicator(color = Color(0xFF2E8B57))
+                    is AuthState.Loading -> {
+                        // AQUÍ MOSTRAMOS EL LOGO MIENTRAS CARGA
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Image(
+                                painter = painterResource(id = R.drawable.logo),
+                                contentDescription = "Logo ListaViva",
+                                modifier = Modifier.size(150.dp)
+                            )
+                            Spacer(modifier = Modifier.height(32.dp))
+                            CircularProgressIndicator(color = Color(0xFF2E8B57))
+                        }
+                    }
                     is AuthState.Error -> Text(text = "Error: ${(authState as AuthState.Error).message}")
-                    else -> {}
+                    else -> {
+                        // Mostramos el logo por defecto por si hay un micro-retraso antes de navegar
+                        Image(
+                            painter = painterResource(id = R.drawable.logo),
+                            contentDescription = "Logo ListaViva",
+                            modifier = Modifier.size(150.dp)
+                        )
+                    }
                 }
             }
         }
@@ -104,14 +131,15 @@ fun ListavivaNavigation() {
                     }
                 },
                 onNavigateToCrearUnirse = {
-                    // Limpiamos historial para que el usuario no pueda darle atrás y volver a la despensa
-                    navController.navigate(Route.CrearUnirse.route) {
-                        popUpTo(Route.Home.route) { inclusive = true }
-                        launchSingleTop = true
-                    }
+                    // CORREGIDO: Usamos la ruta dedicada para no cerrar la app al darle atrás
+                    navController.navigate("unirse_ajustes")
                 }
-
             )
+        }
+
+        // --- RUTA: ESTADÍSTICAS ---
+        composable(BottomNavItem.Estadisticas.route) {
+            EstadisticasScreen()
         }
 
         // --- RUTA: AÑADIR PRODUCTO ---

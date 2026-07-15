@@ -10,7 +10,8 @@
     <application
         android:name=".ListavivaApp"
         android:allowBackup="false"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@drawable/logo"
+        android:roundIcon="@drawable/logo"
         android:label="Listaviva"
         android:supportsRtl="true"
         android:theme="@style/Theme.Listaviva"

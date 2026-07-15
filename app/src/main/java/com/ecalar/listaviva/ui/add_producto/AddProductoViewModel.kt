@@ -12,7 +12,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -36,6 +35,8 @@ class AddProductoViewModel @Inject constructor(
     val uiState: StateFlow<AddProductoState> = _uiState.asStateFlow()
 
     private val _catalogoCompleto = MutableStateFlow<List<ProductoCatalogo>>(emptyList())
+    // NUEVO: Exponemos el catálogo para que la pantalla pueda "escucharlo"
+    val catalogoCompleto: StateFlow<List<ProductoCatalogo>> = _catalogoCompleto.asStateFlow()
 
     // Estados para la navegación del wizard
     val currentStep = MutableStateFlow(AddStep.CATEGORIAS)
@@ -88,33 +89,21 @@ class AddProductoViewModel @Inject constructor(
         }
     }
 
-    fun guardarProducto(cantidad: String) {
-        val producto = productoSeleccionado.value ?: return
-        val familiaId = preferencesRepository.getFamiliaId()
-        val alias = preferencesRepository.getAlias() ?: "Desconocido"
-
-        if (familiaId == null) {
-            _uiState.value = AddProductoState.Error("No se encontró el grupo familiar")
-            return
-        }
-
-        _uiState.value = AddProductoState.Loading
+    fun guardarProducto(formato: String, cantidadActual: Int) {
+        val familiaId = preferencesRepository.getFamiliaId() ?: return
+        val prod = productoSeleccionado.value ?: return
 
         viewModelScope.launch {
             val nuevoProducto = ProductoDespensa(
-                nombre = producto.nombre,
-                categoria = producto.categoria,
-                estado = EstadoProducto.COMPLETO.name.lowercase(),
-                añadidoPor = alias
+                nombre = prod.nombre,
+                categoria = categoriaSeleccionada.value,
+                formato = formato,
+                cantidadActual = cantidadActual,
+                cantidadReferencia = cantidadActual,
+                estado = EstadoProducto.COMPLETO.name.lowercase()
             )
-
-            val result = despensaRepository.addProducto(familiaId, nuevoProducto)
-
-            result.onSuccess {
-                _uiState.value = AddProductoState.Success
-            }.onFailure { e ->
-                _uiState.value = AddProductoState.Error(e.message ?: "Error al guardar")
-            }
+            despensaRepository.addProducto(familiaId, nuevoProducto)
+            _uiState.value = AddProductoState.Success
         }
     }
 }

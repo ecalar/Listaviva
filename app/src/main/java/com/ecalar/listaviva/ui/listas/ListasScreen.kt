@@ -1,6 +1,8 @@
 package com.ecalar.listaviva.ui.listas
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
@@ -9,6 +11,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,6 +29,7 @@ import com.ecalar.listaviva.ui.theme.neoBrutalism
 fun ListasScreen(viewModel: ListasViewModel = hiltViewModel()) {
     val uiState by viewModel.uiState.collectAsState()
     val itemsSeleccionados by viewModel.itemsSeleccionados.collectAsState()
+
 
     val backgroundColor = MaterialTheme.colorScheme.background
     val actionColor = MaterialTheme.colorScheme.primary
@@ -113,8 +117,11 @@ fun ListasScreen(viewModel: ListasViewModel = hiltViewModel()) {
 
                                 ItemListaNeoCard(
                                     item = item,
-                                    isSeleccionado = isSeleccionado,
-                                    onToggle = { viewModel.toggleItemSeleccionado(item.id) }
+                                    isSelected = isSeleccionado,
+                                    onToggleSelect = { viewModel.toggleItemSeleccionado(item.id) },
+                                    onCantidadChange = { incremento ->
+                                        viewModel.cambiarCantidadItem(item, incremento)
+                                    }
                                 )
                             }
                         }
@@ -277,51 +284,44 @@ fun ListasScreen(viewModel: ListasViewModel = hiltViewModel()) {
 @Composable
 fun ItemListaNeoCard(
     item: ItemLista,
-    isSeleccionado: Boolean,
-    onToggle: () -> Unit
+    isSelected: Boolean,
+    onToggleSelect: () -> Unit,
+    onCantidadChange: (Int) -> Unit // <-- IMPORTANTE: Nuevo parámetro
 ) {
     val surfaceColor = MaterialTheme.colorScheme.surface
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
-    // En modo oscuro o claro usamos una variante para los seleccionados
-    val cardColor = if (isSeleccionado) MaterialTheme.colorScheme.surfaceVariant else surfaceColor
+    val actionColor = MaterialTheme.colorScheme.primary
 
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 6.dp, end = 6.dp)
-            .neoBrutalism(cornerRadius = 12.dp, shadowOffset = if (isSeleccionado) 2.dp else 6.dp, borderColor = onSurfaceColor, shadowColor = onSurfaceColor)
-            .clickable { onToggle() },
-        color = cardColor,
+            .padding(vertical = 6.dp)
+            .clickable { onToggleSelect() }
+            .neoBrutalism(cornerRadius = 12.dp, shadowOffset = 4.dp, borderColor = onSurfaceColor, shadowColor = onSurfaceColor),
+        color = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else surfaceColor,
         shape = RoundedCornerShape(12.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Checkbox(
-                checked = isSeleccionado,
-                onCheckedChange = { onToggle() },
-                colors = CheckboxDefaults.colors(
-                    checkedColor = MaterialTheme.colorScheme.primary,
-                    checkmarkColor = MaterialTheme.colorScheme.onPrimary,
-                    uncheckedColor = onSurfaceColor
-                )
-            )
-            Spacer(modifier = Modifier.width(8.dp))
+            Checkbox(checked = isSelected, onCheckedChange = { onToggleSelect() })
+
             Column(modifier = Modifier.weight(1f)) {
+                // NOMBRE + UNIDAD (Ej: Leche Entera - 1 Litro)
                 Text(
-                    text = item.nombre,
+                    text = "${item.nombre} - ${item.cantidad}",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Black,
-                    color = if (isSeleccionado) onSurfaceColor.copy(alpha = 0.5f) else onSurfaceColor
-                )
-                Text(
-                    text = "${item.cantidad.ifEmpty { "1 ud" }} • Añadido por ${item.aliasAñadidoPor}",
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.Bold,
-                    color = onSurfaceColor.copy(alpha = 0.6f)
+                    fontWeight = FontWeight.Black
                 )
             }
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = { onCantidadChange(-1) }) { Icon(Icons.Default.Remove, null) }
+                Text("${item.cantidadAComprar}", fontWeight = FontWeight.Bold)
+                IconButton(onClick = { onCantidadChange(1) }) { Icon(Icons.Default.Add, null) }
+            }
         }
+
     }
 }

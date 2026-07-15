@@ -7,8 +7,8 @@ data class ItemLista(
     val nombre: String = "",
     val despensaProductoId: String? = null,
     val cantidad: String = "",
+    val cantidadAComprar: Int = 1,
     val comprado: Boolean = false,
-    val añadidoPor: String = "",
     val aliasAñadidoPor: String = "",
-    val fechaAñadido: Date = Date()
+    val fechaAñadido: java.util.Date = java.util.Date()
 )

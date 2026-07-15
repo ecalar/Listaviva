@@ -1,6 +1,8 @@
 package com.ecalar.listaviva.ui.add_producto
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -9,7 +11,9 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,7 +36,8 @@ fun AddProductoScreen(
     val categoria by viewModel.categoriaSeleccionada.collectAsState()
     val producto by viewModel.productoSeleccionado.collectAsState()
 
-    // Usamos los colores dinámicos del sistema
+    val catalogo by viewModel.catalogoCompleto.collectAsState()
+
     val backgroundColor = MaterialTheme.colorScheme.background
     val actionColor = MaterialTheme.colorScheme.primary
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
@@ -51,7 +56,7 @@ fun AddProductoScreen(
     val tituloTopBar = when (step) {
         AddStep.CATEGORIAS -> "Elegir Categoría"
         AddStep.PRODUCTOS -> categoria
-        AddStep.DETALLE -> "Añadir Cantidad"
+        AddStep.DETALLE -> "Detalles"
     }
 
     Scaffold(
@@ -115,7 +120,8 @@ fun AddProductoScreen(
                     }
 
                     AddStep.DETALLE -> {
-                        var cantidad by remember { mutableStateOf(producto?.formato ?: "") }
+                        var formato by remember { mutableStateOf(producto?.formato ?: "") }
+                        var cantidadActual by remember { mutableStateOf(1) } // Empezamos siempre con 1 ud
 
                         Column(
                             modifier = Modifier.fillMaxSize().padding(24.dp),
@@ -132,26 +138,57 @@ fun AddProductoScreen(
                                     HorizontalDivider(color = onSurfaceColor, thickness = 2.dp)
 
                                     OutlinedTextField(
-                                        value = cantidad,
-                                        onValueChange = { cantidad = it },
-                                        label = { Text("Unidades, Kg, Litros...", fontWeight = FontWeight.Bold) },
+                                        value = formato,
+                                        onValueChange = { formato = it },
+                                        label = { Text("Formato (Kg, Cajas, Litros...)", fontWeight = FontWeight.Bold) },
                                         modifier = Modifier.fillMaxWidth(),
                                         singleLine = true,
                                         colors = OutlinedTextFieldDefaults.colors(
                                             focusedBorderColor = onSurfaceColor,
                                             unfocusedBorderColor = onSurfaceColor.copy(alpha = 0.5f),
-                                            focusedLabelColor = onSurfaceColor,
-                                            focusedTextColor = onSurfaceColor,
-                                            unfocusedTextColor = onSurfaceColor
+                                            focusedTextColor = onSurfaceColor
                                         )
                                     )
+
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text("¿Cuántas unidades añades ahora?", fontWeight = FontWeight.Bold, color = onSurfaceColor)
+
+                                    // Stepper
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        IconButton(
+                                            onClick = { if (cantidadActual > 1) cantidadActual-- },
+                                            modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp)).size(48.dp).border(2.dp, onSurfaceColor, RoundedCornerShape(8.dp))
+                                        ) {
+                                            Icon(Icons.Default.Remove, "Quitar", tint = onSurfaceColor)
+                                        }
+
+                                        Text(
+                                            text = "$cantidadActual",
+                                            modifier = Modifier.padding(horizontal = 32.dp),
+                                            style = MaterialTheme.typography.displaySmall,
+                                            fontWeight = FontWeight.Black,
+                                            color = onSurfaceColor
+                                        )
+
+                                        IconButton(
+                                            onClick = { cantidadActual++ },
+                                            modifier = Modifier.background(actionColor, RoundedCornerShape(8.dp)).size(48.dp).border(2.dp, onSurfaceColor, RoundedCornerShape(8.dp))
+                                        ) {
+                                            Icon(Icons.Default.Add, "Añadir", tint = MaterialTheme.colorScheme.onPrimary)
+                                        }
+                                    }
                                 }
                             }
 
                             Spacer(modifier = Modifier.weight(1f))
 
                             Button(
-                                onClick = { viewModel.guardarProducto(cantidad) },
+                                // Pasamos el formato y la cantidad al ViewModel
+                                onClick = { viewModel.guardarProducto(formato, cantidadActual) },
                                 modifier = Modifier.fillMaxWidth().neoBrutalism(cornerRadius = 12.dp, shadowOffset = 6.dp, borderColor = onSurfaceColor, shadowColor = onSurfaceColor),
                                 colors = ButtonDefaults.buttonColors(containerColor = actionColor, contentColor = MaterialTheme.colorScheme.onPrimary),
                                 shape = RoundedCornerShape(12.dp),
