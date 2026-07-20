@@ -32,7 +32,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -43,6 +45,7 @@ import com.ecalar.listaviva.domain.model.ListaCompra
 import com.ecalar.listaviva.domain.model.ProductoDespensa
 import com.ecalar.listaviva.ui.theme.neoBrutalism
 import kotlinx.coroutines.launch
+import com.ecalar.listaviva.R
 
 
 @SuppressLint("UnrememberedMutableState")
@@ -404,10 +407,13 @@ fun ProductoNeoCard(
                     AsyncImage(
                         model = producto.imageUrl,
                         contentDescription = "Imagen del producto",
+                        placeholder = painterResource(id = R.drawable.logo),
+                        error = painterResource(id = R.drawable.logo),
+                        contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .size(64.dp)
-                            .padding(end = 8.dp) // <--- Margen para separar del nombre
-                            .clip(RoundedCornerShape(8.dp)) // <--- Opcional: bordes redondeados
+                            .padding(end = 8.dp)
+                            .clip(RoundedCornerShape(8.dp))
                     )
 
                     Text(

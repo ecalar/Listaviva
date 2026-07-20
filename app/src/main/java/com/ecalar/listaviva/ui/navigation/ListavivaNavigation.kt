@@ -28,6 +28,7 @@ import com.ecalar.listaviva.R
 import com.ecalar.listaviva.ui.add_producto.AddProductoScreen
 import com.ecalar.listaviva.ui.auth.AuthState
 import com.ecalar.listaviva.ui.auth.AuthViewModel
+import com.ecalar.listaviva.ui.crear_producto.CrearProductoScreen
 import com.ecalar.listaviva.ui.crear_unirse.CrearUnirseScreen
 import com.ecalar.listaviva.ui.crear_unirse.UnirseSettingsScreen
 import com.ecalar.listaviva.ui.edit_producto.EditProductoScreen
@@ -137,10 +138,8 @@ fun ListavivaNavigation() {
                         onSuccess = { nombre ->
                             android.widget.Toast.makeText(context, "¡Añadido: $nombre!", android.widget.Toast.LENGTH_SHORT).show()
                         },
-                        onProductoNoEncontrado = {
-                            android.widget.Toast.makeText(context, "Producto no reconocido. Añádelo al catálogo.", android.widget.Toast.LENGTH_LONG).show()
-                            // Si no existe, viajamos a la pantalla de añadir
-                            navController.navigate("add_producto")
+                        onProductoNoEncontrado = { navController.navigate("crear_producto/$it")
+
                         }
                     )
                 }
@@ -164,6 +163,18 @@ fun ListavivaNavigation() {
                 onNavigateToScanner = {
                     navController.navigate("scanner")
                 }
+            )
+        }
+
+        // --- RUTA: CREAR PRODUCTO NUEVO (DESDE ESCÁNER) ---
+        composable(
+            route = "crear_producto/{codigo}",
+            arguments = listOf(navArgument("codigo") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val codigo = backStackEntry.arguments?.getString("codigo") ?: ""
+            CrearProductoScreen(
+                codigoBarras = codigo,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 
