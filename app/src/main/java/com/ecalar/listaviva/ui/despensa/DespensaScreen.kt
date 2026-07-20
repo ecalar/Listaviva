@@ -1,5 +1,6 @@
 package com.ecalar.listaviva.ui.despensa
 
+import android.annotation.SuppressLint
 import android.widget.Toast
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
@@ -22,6 +23,7 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -34,6 +36,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
 import com.ecalar.listaviva.domain.model.EstadoProducto
 import com.ecalar.listaviva.domain.model.ListaCompra
 import com.ecalar.listaviva.domain.model.ProductoDespensa
@@ -41,12 +44,14 @@ import com.ecalar.listaviva.ui.theme.neoBrutalism
 import kotlinx.coroutines.launch
 
 
+@SuppressLint("UnrememberedMutableState")
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun DespensaScreen(
+    navController: NavController,
     onNavigateToAddProduct: () -> Unit,
     onNavigateToEditProduct: (String) -> Unit,
-    viewModel: DespensaViewModel = hiltViewModel()
+    viewModel: DespensaViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
@@ -69,6 +74,16 @@ fun DespensaScreen(
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
     val surfaceColor = MaterialTheme.colorScheme.surface
     val onPrimaryColor = MaterialTheme.colorScheme.onPrimary
+
+    val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle
+    val codigoEscaneado by savedStateHandle?.getStateFlow<String?>("codigo_escaneado", null)?.collectAsState() ?: mutableStateOf(null)
+    LaunchedEffect(codigoEscaneado) {
+        codigoEscaneado?.let { codigo ->
+            savedStateHandle?.remove<String>("codigo_escaneado")
+
+            Toast.makeText(context, "Código leído: $codigo", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.comprobarEInicializarCatalogo(context)
@@ -126,15 +141,35 @@ fun DespensaScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = onNavigateToAddProduct,
-                containerColor = actionColor,
-                contentColor = onPrimaryColor,
-                modifier = Modifier.neoBrutalism(cornerRadius = 16.dp, shadowOffset = 6.dp, borderColor = onSurfaceColor, shadowColor = onSurfaceColor)
+            // Usamos un Row que ocupe todo el ancho para separar los botones a los extremos
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 32.dp), // Ajusta el padding para separarlos de los bordes
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Añadir producto", modifier = Modifier.size(28.dp))
+                // BOTÓN IZQUIERDO: Función Premium (Escáner)
+                FloatingActionButton(
+                    onClick = { navController.navigate("scanner") },
+                    containerColor = MaterialTheme.colorScheme.secondary,
+                    contentColor = MaterialTheme.colorScheme.onSecondary,
+                    modifier = Modifier.neoBrutalism(cornerRadius = 16.dp, shadowOffset = 6.dp, borderColor = onSurfaceColor, shadowColor = onSurfaceColor)
+                ) {
+                    Icon(Icons.Default.QrCodeScanner, contentDescription = "Escanear Código")
+                }
+
+                FloatingActionButton(
+                    onClick = onNavigateToAddProduct,
+                    containerColor = actionColor,
+                    contentColor = onPrimaryColor,
+                    modifier = Modifier.neoBrutalism(cornerRadius = 16.dp, shadowOffset = 6.dp, borderColor = onSurfaceColor, shadowColor = onSurfaceColor)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Añadir producto", modifier = Modifier.size(28.dp))
+                }
             }
         },
+        floatingActionButtonPosition = FabPosition.Center, // Obligatorio poner Center para que el Row ocupe todo el ancho real
         containerColor = backgroundColor
     ) { padding ->
         Column(

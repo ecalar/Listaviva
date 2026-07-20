@@ -8,7 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.ecalar.listaviva.util.QRCodeGenerator
+import com.ecalar.listaviva.utils.QRCodeGenerator
 
 @Composable
 fun QRCodeImage(

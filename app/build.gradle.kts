@@ -86,13 +86,17 @@ dependencies {
     // ZXing para generar QR
     implementation("com.google.zxing:core:3.5.3")
 
-    // CameraX
-    implementation("androidx.camera:camera-camera2:1.3.1")
-    implementation("androidx.camera:camera-lifecycle:1.3.1")
-    implementation("androidx.camera:camera-view:1.3.1")
-    implementation("com.google.guava:guava:31.1-android")
+    // CameraX para manejar la cámara
+    val camerax_version = "1.3.1"
+    implementation("androidx.camera:camera-core:$camerax_version")
+    implementation("androidx.camera:camera-camera2:$camerax_version")
+    implementation("androidx.camera:camera-lifecycle:$camerax_version")
+    implementation("androidx.camera:camera-view:$camerax_version")
 
-    // ML Kit Barcode Scanning
+    // Librería necesaria para que CameraX entienda ListenableFuture
+    implementation("com.google.guava:guava:32.1.3-android")
+
+    // ML Kit para escanear el código de barras
     implementation("com.google.mlkit:barcode-scanning:17.2.0")
 
     // Accompanist (permisos de cámara)

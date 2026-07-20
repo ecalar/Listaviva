@@ -35,6 +35,7 @@ import com.ecalar.listaviva.ui.estadisticas.EstadisticasScreen
 import com.ecalar.listaviva.ui.home.BottomNavItem
 import com.ecalar.listaviva.ui.home.HomeScreen
 import com.ecalar.listaviva.ui.onboarding.OnboardingScreen
+import com.ecalar.listaviva.ui.scanner.ScannerScreen
 
 @Composable
 fun ListavivaNavigation() {
@@ -131,7 +132,6 @@ fun ListavivaNavigation() {
                     }
                 },
                 onNavigateToCrearUnirse = {
-                    // CORREGIDO: Usamos la ruta dedicada para no cerrar la app al darle atrás
                     navController.navigate("unirse_ajustes")
                 }
             )
@@ -146,6 +146,17 @@ fun ListavivaNavigation() {
         composable("add_producto") {
             AddProductoScreen(
                 onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("scanner") {
+            ScannerScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onBarcodeScanned = { codigoLeido ->
+                    // Cuando la cámara lee el código, volvemos a la despensa y le pasamos el código
+                    navController.previousBackStackEntry?.savedStateHandle?.set("codigo_escaneado", codigoLeido)
+                    navController.popBackStack()
+                }
             )
         }
 

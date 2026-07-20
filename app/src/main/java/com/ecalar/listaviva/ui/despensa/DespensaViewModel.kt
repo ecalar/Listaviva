@@ -6,11 +6,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ecalar.listaviva.domain.model.EstadoProducto
 import com.ecalar.listaviva.domain.model.ListaCompra
+import com.ecalar.listaviva.domain.model.ProductoCatalogo
 import com.ecalar.listaviva.domain.model.ProductoDespensa
 import com.ecalar.listaviva.domain.repository.CatalogoRepository
 import com.ecalar.listaviva.domain.repository.DespensaRepository
 import com.ecalar.listaviva.domain.repository.ListaCompraRepository
 import com.ecalar.listaviva.domain.repository.UserPreferencesRepository
+import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,6 +20,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.Date
 import javax.inject.Inject
+import kotlinx.coroutines.tasks.await
 
 sealed class DespensaState {
     object Loading : DespensaState()
@@ -34,7 +37,8 @@ class DespensaViewModel @Inject constructor(
     private val despensaRepository: DespensaRepository,
     private val listaCompraRepository: ListaCompraRepository,
     private val preferencesRepository: UserPreferencesRepository,
-    private val catalogoRepository: CatalogoRepository
+    private val catalogoRepository: CatalogoRepository,
+    private val firestore: FirebaseFirestore
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<DespensaState>(DespensaState.Loading)
@@ -183,4 +187,62 @@ class DespensaViewModel @Inject constructor(
             )
         }
     }
+
+    fun procesarCodigoBarras(codigo: String, onProductoNoEncontrado: (String) -> Unit) {
+        viewModelScope.launch {
+            // 1. Buscamos en nuestro catálogo global (Crowdsourced)
+            val productoEncontrado = buscarProductoEnCatalogoGlobal(codigo)
+
+            if (productoEncontrado != null) {
+                // El producto existe.
+                // Lo añadimos directamente a la despensa del usuario.
+                añadirProductoADespensa(productoEncontrado)
+            } else {
+                // NO EXISTE. Invocamos la función para que navegue a la pantalla de añadir
+                // pasándole el código para que lo rellene y se guarde para todos.
+                onProductoNoEncontrado(codigo)
+            }
+        }
+    }
+
+    private fun añadirProductoADespensa(productoCatalogo: ProductoCatalogo) {
+        val familiaId = preferencesRepository.getFamiliaId() ?: return
+        val alias = preferencesRepository.getAlias() ?: "Desconocido"
+
+        // Creamos el objeto listo para tu despensa
+        val nuevoProducto = ProductoDespensa(
+            id = "", // Firebase le asignará un ID automáticamente al guardarlo
+            nombre = productoCatalogo.nombre,
+            categoria = productoCatalogo.categoria,
+            formato = "1 ud",
+            cantidadActual = 1,
+            cantidadReferencia = 1,
+            estado = EstadoProducto.COMPLETO.name.lowercase(),
+            añadidoPor = alias
+        )
+
+        viewModelScope.launch {
+            // Llama a la función de tu repositorio que añade un producto
+            // Nota: Asegúrate de que el nombre de la función coincida con la de tu repositorio (addProducto, guardarProducto, etc.)
+            despensaRepository.addProducto(familiaId, nuevoProducto)
+        }
+    }
+
+    // Función auxiliar para buscar en Firestore
+    private suspend fun buscarProductoEnCatalogoGlobal(codigo: String): ProductoCatalogo? {
+        return try {
+            val querySnapshot = firestore.collection("catalogo_global")
+                .whereEqualTo("codigoBarras", codigo)
+                .limit(1)
+                .get()
+                .await()
+
+            if (querySnapshot.isEmpty) null
+            else querySnapshot.documents.first().toObject(ProductoCatalogo::class.java)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+
 }

@@ -1,4 +1,4 @@
-package com.ecalar.listaviva.util
+package com.ecalar.listaviva.utils
 
 import android.graphics.Bitmap
 import androidx.compose.ui.graphics.Color

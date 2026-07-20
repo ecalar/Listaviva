@@ -79,6 +79,7 @@ fun HomeScreen(
 
                 composable(BottomNavItem.Despensa.route) {
                     DespensaScreen(
+                        navController = navController,
                         onNavigateToAddProduct = onNavigateToAddProduct,
                         onNavigateToEditProduct = onNavigateToEditProduct
                     )
@@ -91,9 +92,7 @@ fun HomeScreen(
                 composable(BottomNavItem.Ajustes.route) {
                     AjustesScreen(
                         onNavigateToLogin = onLogout,
-                        onNavigateToCrearUnirse = {
-                            navController.navigate("unirse_ajustes")
-                        }
+                        onNavigateToCrearUnirse = onNavigateToCrearUnirse
                     )
                 }
                 composable(BottomNavItem.Estadisticas.route) {

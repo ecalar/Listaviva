@@ -57,21 +57,14 @@ fun ListasScreen(viewModel: ListasViewModel = hiltViewModel()) {
             )
         },
         floatingActionButton = {
-            if (itemsSeleccionados.isNotEmpty()) {
-                ExtendedFloatingActionButton(
-                    onClick = {
-                        val cantidadComprada = itemsSeleccionados.size
-                        viewModel.confirmarCompra()
-                        scope.launch {
-                            snackbarHostState.showSnackbar("¡$cantidadComprada productos enviados a la despensa!")
-                        }
-                    },
-                    containerColor = actionColor,
-                    contentColor = onPrimaryColor,
-                    modifier = Modifier.neoBrutalism(cornerRadius = 16.dp, shadowOffset = 6.dp, borderColor = onSurfaceColor, shadowColor = onSurfaceColor)
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "Añadir Lista")
-                }
+            // Este botón SIEMPRE está visible y solo sirve para crear listas
+            FloatingActionButton(
+                onClick = { showCreateDialog = true },
+                containerColor = actionColor,
+                contentColor = onPrimaryColor,
+                modifier = Modifier.neoBrutalism(cornerRadius = 16.dp, shadowOffset = 6.dp, borderColor = onSurfaceColor, shadowColor = onSurfaceColor)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Añadir Lista")
             }
         },
         containerColor = backgroundColor
@@ -151,7 +144,8 @@ fun ListasScreen(viewModel: ListasViewModel = hiltViewModel()) {
                             Surface(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(16.dp)
+                                    // Margen inferior para que no se superponga con el FAB
+                                    .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 88.dp)
                                     .neoBrutalism(cornerRadius = 16.dp, shadowOffset = 6.dp, borderColor = onSurfaceColor, shadowColor = onSurfaceColor),
                                 color = if (marcados > 0) actionColor else surfaceColor,
                                 shape = RoundedCornerShape(16.dp)

@@ -1,5 +1,6 @@
 package com.ecalar.listaviva.ui.add_producto
 
+import android.annotation.SuppressLint
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -12,7 +13,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.ecalar.listaviva.ui.theme.neoBrutalism
 
+@SuppressLint("AutoboxingStateCreation")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddProductoScreen(
@@ -37,6 +38,11 @@ fun AddProductoScreen(
     val producto by viewModel.productoSeleccionado.collectAsState()
 
     val catalogo by viewModel.catalogoCompleto.collectAsState()
+
+    // Declaración única y anclada de las categorías
+    val categorias = remember(catalogo) {
+        catalogo.map { it.categoria }.distinct().sorted()
+    }
 
     val backgroundColor = MaterialTheme.colorScheme.background
     val actionColor = MaterialTheme.colorScheme.primary
@@ -80,22 +86,41 @@ fun AddProductoScreen(
             } else {
                 when (step) {
                     AddStep.CATEGORIAS -> {
-                        val categorias = remember(catalogo) {
-                            catalogo.map { it.categoria }.distinct().sorted()
-                        }
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(2),
-                            contentPadding = PaddingValues(16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            items(categorias) { cat ->
-                                SeleccionCard(
-                                    texto = cat,
-                                    colorFondo = MaterialTheme.colorScheme.secondary,
-                                    textColor = MaterialTheme.colorScheme.onSecondary
-                                ) {
-                                    viewModel.seleccionarCategoria(cat)
+                        // NUEVA LÓGICA DE UX: Mostramos un loader si aún no hay categorías
+                        if (categorias.isEmpty()) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(48.dp),
+                                        color = onSurfaceColor,
+                                        strokeWidth = 4.dp
+                                    )
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Text(
+                                        text = "Cargando categorías...",
+                                        fontWeight = FontWeight.Bold,
+                                        color = onSurfaceColor.copy(alpha = 0.7f)
+                                    )
+                                }
+                            }
+                        } else {
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(2),
+                                contentPadding = PaddingValues(16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                items(categorias) { cat ->
+                                    SeleccionCard(
+                                        texto = cat,
+                                        colorFondo = MaterialTheme.colorScheme.secondary,
+                                        textColor = MaterialTheme.colorScheme.onSecondary
+                                    ) {
+                                        viewModel.seleccionarCategoria(cat)
+                                    }
                                 }
                             }
                         }
@@ -125,7 +150,7 @@ fun AddProductoScreen(
 
                     AddStep.DETALLE -> {
                         var formato by remember { mutableStateOf(producto?.formato ?: "") }
-                        var cantidadActual by remember { mutableStateOf(1) } // Empezamos siempre con 1 ud
+                        var cantidadActual by remember { mutableIntStateOf(1) }
 
                         Column(
                             modifier = Modifier.fillMaxSize().padding(24.dp),
