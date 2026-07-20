@@ -24,7 +24,8 @@ fun HomeScreen(
     onNavigateToAddProduct: () -> Unit,
     onNavigateToEditProduct: (String) -> Unit,
     onLogout: () -> Unit,
-    onNavigateToCrearUnirse: () -> Unit
+    onNavigateToCrearUnirse: () -> Unit,
+    onNavigateToScanner: () -> Unit
 ) {
     val navController = rememberNavController()
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
@@ -81,7 +82,8 @@ fun HomeScreen(
                     DespensaScreen(
                         navController = navController,
                         onNavigateToAddProduct = onNavigateToAddProduct,
-                        onNavigateToEditProduct = onNavigateToEditProduct
+                        onNavigateToEditProduct = onNavigateToEditProduct,
+                        onNavigateToScanner = onNavigateToScanner
                     )
                 }
 

@@ -1,5 +1,6 @@
 package com.ecalar.listaviva.domain.model
 
+import java.net.URL
 import java.util.Date
 
 enum class EstadoProducto {
@@ -10,6 +11,7 @@ enum class EstadoProducto {
 }
 
 data class ProductoDespensa(
+    val imageUrl: String = "",
     val id: String = "",
     val nombre: String = "",
     val categoria: String = "",

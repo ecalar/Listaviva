@@ -8,5 +8,7 @@ data class ProductoCatalogo(
     val subcategoria: String = "",
     val sugeridoPor: String = "",
     val vecesUsado: Int = 0,
-    val codigoBarras: String? = null
+    val codigoBarras: String? = null,
+    val imageUrl: String = ""
 )
+

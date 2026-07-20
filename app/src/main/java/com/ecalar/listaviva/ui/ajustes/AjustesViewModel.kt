@@ -84,8 +84,7 @@ class AjustesViewModel @Inject constructor(
                     val esElUltimo = familia.miembros.size <= 1
 
                     if (esElUltimo) {
-                        // BORRADO EN CASCADA: Borramos la familia y todo lo que contiene
-                        // Nota: Deberías añadir una función 'borrarFamiliaCompleta' en FamiliaRepository
+                        //Borra familia completa
                         familiaRepository.borrarFamiliaCompleta(familiaId)
                     } else {
                         // Solo nos quitamos de la lista

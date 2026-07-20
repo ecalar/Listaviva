@@ -1,4 +1,4 @@
-package com.ecalar.listaviva.ui.scanner // Ajusta tu paquete aquí
+package com.ecalar.listaviva.ui.scanner
 
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -23,18 +23,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
-import com.ecalar.listaviva.utils.BarcodeAnalyzer // Asegúrate de importar tu BarcodeAnalyzer
+import com.ecalar.listaviva.utils.BarcodeAnalyzer
 
 @Composable
 fun ScannerScreen(
     onNavigateBack: () -> Unit,
     onBarcodeScanned: (String) -> Unit
 ) {
+    // Esta variable actúa como un interruptor para evitar múltiples escaneos
+    var yaEscaneado by remember { mutableStateOf(false) }
+
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var hasPermission by remember { mutableStateOf(false) }
 
-    // Lanzador para pedir permisos de cámara
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { granted -> hasPermission = granted }
@@ -65,7 +67,11 @@ fun ScannerScreen(
                                 it.setAnalyzer(
                                     ContextCompat.getMainExecutor(ctx),
                                     BarcodeAnalyzer { barcode ->
-                                        onBarcodeScanned(barcode)
+                                        // Solo ejecutamos la lógica si no hemos escaneado antes
+                                        if (!yaEscaneado) {
+                                            yaEscaneado = true
+                                            onBarcodeScanned(barcode)
+                                        }
                                     }
                                 )
                             }
@@ -90,7 +96,6 @@ fun ScannerScreen(
                 modifier = Modifier.fillMaxSize()
             )
 
-            // Botón para volver atrás superpuesto en la cámara
             IconButton(
                 onClick = onNavigateBack,
                 modifier = Modifier
@@ -101,7 +106,6 @@ fun ScannerScreen(
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver", tint = Color.White)
             }
 
-            // Un pequeño marco visual para indicar dónde poner el código
             Box(
                 modifier = Modifier
                     .align(Alignment.Center)
@@ -120,7 +124,6 @@ fun ScannerScreen(
             )
         }
     } else {
-        // Pantalla de carga o mensaje de permisos
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("Se requiere permiso de cámara para escanear.")
         }

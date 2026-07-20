@@ -37,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import com.ecalar.listaviva.domain.model.EstadoProducto
 import com.ecalar.listaviva.domain.model.ListaCompra
 import com.ecalar.listaviva.domain.model.ProductoDespensa
@@ -51,6 +52,7 @@ fun DespensaScreen(
     navController: NavController,
     onNavigateToAddProduct: () -> Unit,
     onNavigateToEditProduct: (String) -> Unit,
+    onNavigateToScanner: () -> Unit,
     viewModel: DespensaViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
@@ -77,13 +79,7 @@ fun DespensaScreen(
 
     val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle
     val codigoEscaneado by savedStateHandle?.getStateFlow<String?>("codigo_escaneado", null)?.collectAsState() ?: mutableStateOf(null)
-    LaunchedEffect(codigoEscaneado) {
-        codigoEscaneado?.let { codigo ->
-            savedStateHandle?.remove<String>("codigo_escaneado")
 
-            Toast.makeText(context, "Código leído: $codigo", Toast.LENGTH_SHORT).show()
-        }
-    }
 
     LaunchedEffect(Unit) {
         viewModel.comprobarEInicializarCatalogo(context)
@@ -141,7 +137,7 @@ fun DespensaScreen(
             )
         },
         floatingActionButton = {
-            // Usamos un Row que ocupe todo el ancho para separar los botones a los extremos
+            // Usamos un Row que ocupe el ancho completo para separar los botones a los extremos
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -149,9 +145,8 @@ fun DespensaScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // BOTÓN IZQUIERDO: Función Premium (Escáner)
                 FloatingActionButton(
-                    onClick = { navController.navigate("scanner") },
+                    onClick = onNavigateToScanner,
                     containerColor = MaterialTheme.colorScheme.secondary,
                     contentColor = MaterialTheme.colorScheme.onSecondary,
                     modifier = Modifier.neoBrutalism(cornerRadius = 16.dp, shadowOffset = 6.dp, borderColor = onSurfaceColor, shadowColor = onSurfaceColor)
@@ -169,7 +164,7 @@ fun DespensaScreen(
                 }
             }
         },
-        floatingActionButtonPosition = FabPosition.Center, // Obligatorio poner Center para que el Row ocupe todo el ancho real
+        floatingActionButtonPosition = FabPosition.Center,
         containerColor = backgroundColor
     ) { padding ->
         Column(
@@ -366,6 +361,7 @@ fun ProductoNeoCard(
     onAgotar: () -> Unit,
     onEditar: () -> Unit,
     onEliminar: () -> Unit
+
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
 
@@ -405,6 +401,15 @@ fun ProductoNeoCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.Top
                 ) {
+                    AsyncImage(
+                        model = producto.imageUrl,
+                        contentDescription = "Imagen del producto",
+                        modifier = Modifier
+                            .size(64.dp)
+                            .padding(end = 8.dp) // <--- Margen para separar del nombre
+                            .clip(RoundedCornerShape(8.dp)) // <--- Opcional: bordes redondeados
+                    )
+
                     Text(
                         text = "${producto.nombre} (${producto.formato.ifEmpty { "ud" }})",
                         style = MaterialTheme.typography.titleMedium,

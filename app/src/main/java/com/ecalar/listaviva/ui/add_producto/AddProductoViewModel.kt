@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.google.firebase.firestore.FirebaseFirestore
 
 enum class AddStep { CATEGORIAS, PRODUCTOS, DETALLE }
 
@@ -28,14 +29,15 @@ sealed class AddProductoState {
 class AddProductoViewModel @Inject constructor(
     private val despensaRepository: DespensaRepository,
     private val catalogoRepository: CatalogoRepository,
-    private val preferencesRepository: UserPreferencesRepository
+    private val preferencesRepository: UserPreferencesRepository,
+    private val firestore: FirebaseFirestore
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<AddProductoState>(AddProductoState.Idle)
     val uiState: StateFlow<AddProductoState> = _uiState.asStateFlow()
 
     private val _catalogoCompleto = MutableStateFlow<List<ProductoCatalogo>>(emptyList())
-    // NUEVO: Exponemos el catálogo para que la pantalla pueda "escucharlo"
+    // Exponemos el catálogo para que la pantalla pueda "escucharlo"
     val catalogoCompleto: StateFlow<List<ProductoCatalogo>> = _catalogoCompleto.asStateFlow()
 
     // Estados para la navegación del wizard
@@ -89,18 +91,32 @@ class AddProductoViewModel @Inject constructor(
         }
     }
 
-    fun guardarProducto(formato: String, cantidadActual: Int) {
+    fun guardarProducto(formato: String, cantidadActual: Int, codigoBarras: String? = null) {
         val familiaId = preferencesRepository.getFamiliaId() ?: return
         val prod = productoSeleccionado.value ?: return
 
         viewModelScope.launch {
+            // 1. Si hay código de barras, lo registramos en el catálogo global (Firebase)
+            if (!codigoBarras.isNullOrBlank()) {
+                val nuevoCatalogo = ProductoCatalogo(
+                    id = codigoBarras,
+                    nombre = prod.nombre,
+                    categoria = categoriaSeleccionada.value,
+                    codigoBarras = codigoBarras
+                )
+                // Ahora firestore ya es una variable conocida y no dará error
+                firestore.collection("catalogo_global").document(codigoBarras).set(nuevoCatalogo)
+            }
+
+            // 2. Guardamos el producto en la despensa
             val nuevoProducto = ProductoDespensa(
                 nombre = prod.nombre,
                 categoria = categoriaSeleccionada.value,
                 formato = formato,
                 cantidadActual = cantidadActual,
                 cantidadReferencia = cantidadActual,
-                estado = EstadoProducto.COMPLETO.name.lowercase()
+                estado = EstadoProducto.COMPLETO.name.lowercase(),
+                imageUrl = prod.imageUrl
             )
             despensaRepository.addProducto(familiaId, nuevoProducto)
             _uiState.value = AddProductoState.Success

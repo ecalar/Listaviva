@@ -4,6 +4,7 @@ import android.content.Context
 import com.ecalar.listaviva.domain.model.ItemLista
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ecalar.listaviva.data.remote.OpenFoodFactsApi
 import com.ecalar.listaviva.domain.model.EstadoProducto
 import com.ecalar.listaviva.domain.model.ListaCompra
 import com.ecalar.listaviva.domain.model.ProductoCatalogo
@@ -38,7 +39,8 @@ class DespensaViewModel @Inject constructor(
     private val listaCompraRepository: ListaCompraRepository,
     private val preferencesRepository: UserPreferencesRepository,
     private val catalogoRepository: CatalogoRepository,
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val api: OpenFoodFactsApi
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<DespensaState>(DespensaState.Loading)
@@ -188,42 +190,24 @@ class DespensaViewModel @Inject constructor(
         }
     }
 
-    fun procesarCodigoBarras(codigo: String, onProductoNoEncontrado: (String) -> Unit) {
-        viewModelScope.launch {
-            // 1. Buscamos en nuestro catálogo global (Crowdsourced)
-            val productoEncontrado = buscarProductoEnCatalogoGlobal(codigo)
-
-            if (productoEncontrado != null) {
-                // El producto existe.
-                // Lo añadimos directamente a la despensa del usuario.
-                añadirProductoADespensa(productoEncontrado)
-            } else {
-                // NO EXISTE. Invocamos la función para que navegue a la pantalla de añadir
-                // pasándole el código para que lo rellene y se guarde para todos.
-                onProductoNoEncontrado(codigo)
-            }
-        }
-    }
-
     private fun añadirProductoADespensa(productoCatalogo: ProductoCatalogo) {
         val familiaId = preferencesRepository.getFamiliaId() ?: return
         val alias = preferencesRepository.getAlias() ?: "Desconocido"
 
         // Creamos el objeto listo para tu despensa
         val nuevoProducto = ProductoDespensa(
-            id = "", // Firebase le asignará un ID automáticamente al guardarlo
+            id = "",
             nombre = productoCatalogo.nombre,
             categoria = productoCatalogo.categoria,
             formato = "1 ud",
             cantidadActual = 1,
             cantidadReferencia = 1,
             estado = EstadoProducto.COMPLETO.name.lowercase(),
-            añadidoPor = alias
+            añadidoPor = alias,
+            imageUrl = productoCatalogo.imageUrl
         )
 
         viewModelScope.launch {
-            // Llama a la función de tu repositorio que añade un producto
-            // Nota: Asegúrate de que el nombre de la función coincida con la de tu repositorio (addProducto, guardarProducto, etc.)
             despensaRepository.addProducto(familiaId, nuevoProducto)
         }
     }
@@ -244,5 +228,47 @@ class DespensaViewModel @Inject constructor(
         }
     }
 
+    fun procesarCodigoBarras(
+        codigo: String,
+        onSuccess: (String) -> Unit,
+        onProductoNoEncontrado: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                // 1. ¿Está en nuestra BBDD colaborativa?
+                val productoEncontrado = buscarProductoEnCatalogoGlobal(codigo)
+                if (productoEncontrado != null) {
+                    añadirProductoADespensa(productoEncontrado)
+                    onSuccess(productoEncontrado.nombre)
+                    return@launch
+                }
 
+                // 2. ¿Está en Open Food Facts?
+                val respuesta = api.getProductByBarcode(codigo)
+                if (respuesta.status == 1 && respuesta.product != null) {
+                    val nombreCompleto = (respuesta.product.productName ?: "Producto") +
+                            (if (!respuesta.product.brands.isNullOrBlank()) " (${respuesta.product.brands})" else "")
+
+                    val nuevoProductoCatalogo = ProductoCatalogo(
+                        id = codigo,
+                        nombre = nombreCompleto,
+                        categoria = "Otros",
+                        codigoBarras = codigo
+                    )
+
+                    // Lo guardamos en nuestra BBDD para el futuro
+                    firestore.collection("catalogo_global").document(codigo).set(nuevoProductoCatalogo)
+
+                    // Lo añadimos a la despensa
+                    añadirProductoADespensa(nuevoProductoCatalogo)
+                    onSuccess(nombreCompleto)
+                } else {
+                    // 3. No existe en ningún sitio: obligamos a crear manualmente
+                    onProductoNoEncontrado(codigo)
+                }
+            } catch (e: Exception) {
+                onProductoNoEncontrado(codigo)
+            }
+        }
+    }
 }

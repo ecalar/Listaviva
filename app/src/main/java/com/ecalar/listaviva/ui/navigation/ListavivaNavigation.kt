@@ -117,13 +117,40 @@ fun ListavivaNavigation() {
         }
 
         // --- RUTA: HOME (Despensa y Listas) ---
-        composable(Route.Home.route) {
+        composable(Route.Home.route) { backStackEntry ->
+
+            // 1. Inyectamos el ViewModel de la despensa y el contexto aquí mismo
+            val despensaViewModel: com.ecalar.listaviva.ui.despensa.DespensaViewModel = hiltViewModel()
+            val context = androidx.compose.ui.platform.LocalContext.current
+
+            // 2. Leemos el código escaneado del mapa general
+            val codigoEscaneado = backStackEntry.savedStateHandle.get<String>("codigo_escaneado")
+
+            // 3. Procesamos el código justo al volver a la pantalla Home
+            LaunchedEffect(codigoEscaneado) {
+                codigoEscaneado?.let { codigo ->
+                    // Limpiamos para que no se repita
+                    backStackEntry.savedStateHandle.remove<String>("codigo_escaneado")
+
+                    despensaViewModel.procesarCodigoBarras(
+                        codigo = codigo,
+                        onSuccess = { nombre ->
+                            android.widget.Toast.makeText(context, "¡Añadido: $nombre!", android.widget.Toast.LENGTH_SHORT).show()
+                        },
+                        onProductoNoEncontrado = {
+                            android.widget.Toast.makeText(context, "Producto no reconocido. Añádelo al catálogo.", android.widget.Toast.LENGTH_LONG).show()
+                            // Si no existe, viajamos a la pantalla de añadir
+                            navController.navigate("add_producto")
+                        }
+                    )
+                }
+            }
+
             HomeScreen(
                 onNavigateToAddProduct = {
                     navController.navigate("add_producto")
                 },
                 onNavigateToEditProduct = { productId ->
-                    // Navegamos a la ruta de edición pasando el ID
                     navController.navigate("edit_producto/$productId")
                 },
                 onLogout = {
@@ -133,6 +160,9 @@ fun ListavivaNavigation() {
                 },
                 onNavigateToCrearUnirse = {
                     navController.navigate("unirse_ajustes")
+                },
+                onNavigateToScanner = {
+                    navController.navigate("scanner")
                 }
             )
         }

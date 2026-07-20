@@ -40,9 +40,7 @@ fun AddProductoScreen(
     val catalogo by viewModel.catalogoCompleto.collectAsState()
 
     // Declaración única y anclada de las categorías
-    val categorias = remember(catalogo) {
-        catalogo.map { it.categoria }.distinct().sorted()
-    }
+    val categorias = catalogo.map { it.categoria }.distinct().sorted()
 
     val backgroundColor = MaterialTheme.colorScheme.background
     val actionColor = MaterialTheme.colorScheme.primary
@@ -127,9 +125,7 @@ fun AddProductoScreen(
                     }
 
                     AddStep.PRODUCTOS -> {
-                        val productos = remember(catalogo, categoria) {
-                            catalogo.filter { it.categoria == categoria }.sortedBy { it.nombre }
-                        }
+                        val productos = catalogo.filter { it.categoria == categoria }.sortedBy { it.nombre }
                         LazyVerticalGrid(
                             columns = GridCells.Fixed(2),
                             contentPadding = PaddingValues(16.dp),
