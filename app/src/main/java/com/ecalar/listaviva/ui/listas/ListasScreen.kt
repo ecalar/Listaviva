@@ -1,5 +1,6 @@
 package com.ecalar.listaviva.ui.listas
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -11,6 +12,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -23,6 +25,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.ecalar.listaviva.domain.model.ItemLista
 import com.ecalar.listaviva.domain.model.ListaCompra
 import com.ecalar.listaviva.ui.theme.neoBrutalism
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -30,12 +33,14 @@ fun ListasScreen(viewModel: ListasViewModel = hiltViewModel()) {
     val uiState by viewModel.uiState.collectAsState()
     val itemsSeleccionados by viewModel.itemsSeleccionados.collectAsState()
 
-
     val backgroundColor = MaterialTheme.colorScheme.background
     val actionColor = MaterialTheme.colorScheme.primary
     val surfaceColor = MaterialTheme.colorScheme.surface
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
     val onPrimaryColor = MaterialTheme.colorScheme.onPrimary
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     var listaParaEditar by remember { mutableStateOf<ListaCompra?>(null) }
     var showEditDialog by remember { mutableStateOf(false) }
@@ -43,16 +48,24 @@ fun ListasScreen(viewModel: ListasViewModel = hiltViewModel()) {
     var showConfirmDialog by remember { mutableStateOf(false) }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
+            topBar@
             TopAppBar(
                 title = { Text("Listas", fontWeight = FontWeight.Black, color = onSurfaceColor) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = backgroundColor)
             )
         },
         floatingActionButton = {
-            if (itemsSeleccionados.isEmpty()) {
-                FloatingActionButton(
-                    onClick = { showCreateDialog = true },
+            if (itemsSeleccionados.isNotEmpty()) {
+                ExtendedFloatingActionButton(
+                    onClick = {
+                        val cantidadComprada = itemsSeleccionados.size
+                        viewModel.confirmarCompra()
+                        scope.launch {
+                            snackbarHostState.showSnackbar("¡$cantidadComprada productos enviados a la despensa!")
+                        }
+                    },
                     containerColor = actionColor,
                     contentColor = onPrimaryColor,
                     modifier = Modifier.neoBrutalism(cornerRadius = 16.dp, shadowOffset = 6.dp, borderColor = onSurfaceColor, shadowColor = onSurfaceColor)
@@ -109,20 +122,25 @@ fun ListasScreen(viewModel: ListasViewModel = hiltViewModel()) {
 
                         LazyColumn(
                             contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp),
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f) // Se quita el verticalArrangement para evitar saltos en la animación
                         ) {
                             items(state.itemsPendientes, key = { it.id }) { item ->
                                 val isSeleccionado = itemsSeleccionados.contains(item.id)
 
-                                ItemListaNeoCard(
-                                    item = item,
-                                    isSelected = isSeleccionado,
-                                    onToggleSelect = { viewModel.toggleItemSeleccionado(item.id) },
-                                    onCantidadChange = { incremento ->
-                                        viewModel.cambiarCantidadItem(item, incremento)
-                                    }
-                                )
+                                // Caja animada para que las tarjetas se deslicen suavemente
+                                Box(modifier = Modifier.animateItemPlacement()) {
+                                    ItemListaNeoCard(
+                                        item = item,
+                                        isSelected = isSeleccionado,
+                                        onToggleSelect = { viewModel.toggleItemSeleccionado(item.id) },
+                                        onCantidadChange = { incremento ->
+                                            viewModel.cambiarCantidadItem(item, incremento)
+                                        },
+                                        onDelete = {
+                                            viewModel.eliminarItemDeLista(item)
+                                        }
+                                    )
+                                }
                             }
                         }
 
@@ -270,6 +288,9 @@ fun ListasScreen(viewModel: ListasViewModel = hiltViewModel()) {
                     onClick = {
                         viewModel.confirmarCompra()
                         showConfirmDialog = false
+                        scope.launch {
+                            snackbarHostState.showSnackbar("¡$marcados productos enviados a la despensa!")
+                        }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = actionColor, contentColor = onPrimaryColor)
                 ) { Text("Sí, confirmar", fontWeight = FontWeight.Black) }
@@ -281,47 +302,90 @@ fun ListasScreen(viewModel: ListasViewModel = hiltViewModel()) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ItemListaNeoCard(
     item: ItemLista,
     isSelected: Boolean,
     onToggleSelect: () -> Unit,
-    onCantidadChange: (Int) -> Unit // <-- IMPORTANTE: Nuevo parámetro
+    onCantidadChange: (Int) -> Unit,
+    onDelete: () -> Unit
 ) {
     val surfaceColor = MaterialTheme.colorScheme.surface
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
     val actionColor = MaterialTheme.colorScheme.primary
 
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp)
-            .clickable { onToggleSelect() }
-            .neoBrutalism(cornerRadius = 12.dp, shadowOffset = 4.dp, borderColor = onSurfaceColor, shadowColor = onSurfaceColor),
-        color = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else surfaceColor,
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Checkbox(checked = isSelected, onCheckedChange = { onToggleSelect() })
-
-            Column(modifier = Modifier.weight(1f)) {
-                // NOMBRE + UNIDAD (Ej: Leche Entera - 1 Litro)
-                Text(
-                    text = "${item.nombre} - ${item.cantidad}",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Black
-                )
-            }
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { onCantidadChange(-1) }) { Icon(Icons.Default.Remove, null) }
-                Text("${item.cantidadAComprar}", fontWeight = FontWeight.Bold)
-                IconButton(onClick = { onCantidadChange(1) }) { Icon(Icons.Default.Add, null) }
+    // Estado que controla el deslizamiento
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { dismissValue ->
+            if (dismissValue == SwipeToDismissBoxValue.EndToStart) {
+                onDelete()
+                true
+            } else {
+                false
             }
         }
+    )
 
-    }
+    SwipeToDismissBox(
+        state = dismissState,
+        enableDismissFromStartToEnd = false, // Solo permitimos deslizar de derecha a izquierda
+        backgroundContent = {
+            val color = if (dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart) {
+                Color(0xFFEF4444) // Rojo al deslizar
+            } else {
+                Color.Transparent
+            }
+
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .padding(vertical = 6.dp)
+                    .background(color, RoundedCornerShape(12.dp))
+                    .padding(horizontal = 20.dp),
+                contentAlignment = Alignment.CenterEnd
+            ) {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = "Eliminar",
+                    tint = Color.White,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+        },
+        content = {
+            // ESTA ES TU TARJETA ORIGINAL INTACTA
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 6.dp)
+                    .clickable { onToggleSelect() }
+                    .animateContentSize()
+                    .neoBrutalism(cornerRadius = 12.dp, shadowOffset = 4.dp, borderColor = onSurfaceColor, shadowColor = onSurfaceColor),
+                color = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else surfaceColor,
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(checked = isSelected, onCheckedChange = { onToggleSelect() })
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "${item.nombre} - ${item.cantidad}",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Black
+                        )
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { onCantidadChange(-1) }) { Icon(Icons.Default.Remove, null) }
+                        Text("${item.cantidadAComprar}", fontWeight = FontWeight.Bold)
+                        IconButton(onClick = { onCantidadChange(1) }) { Icon(Icons.Default.Add, null) }
+                    }
+                }
+            }
+        }
+    )
 }

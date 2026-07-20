@@ -119,4 +119,22 @@ class ListaCompraRepositoryImpl @Inject constructor(
             Result.failure(e)
         }
     }
+
+    override suspend fun eliminarItemDeLista(familiaId: String, listaId: String, itemId: String): Result<Unit> {
+        return try {
+            // Asumiendo que tu estructura es familias -> listaCompra -> items
+            firestore.collection("familias")
+                .document(familiaId)
+                .collection("listasCompra")
+                .document(listaId)
+                .collection("items")
+                .document(itemId)
+                .delete()
+                .await()
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

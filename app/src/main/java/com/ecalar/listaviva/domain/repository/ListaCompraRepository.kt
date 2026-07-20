@@ -16,4 +16,6 @@ interface ListaCompraRepository {
     suspend fun updateNombreLista(familiaId: String, listaId: String, nuevoNombre: String): Result<Unit>
 
     suspend fun updateCantidadItem(familiaId: String, listaId: String, itemId: String, nuevaCantidad: Int): Result<Unit>
+
+    suspend fun eliminarItemDeLista(familiaId: String, listaId: String, itemId: String): Result<Unit>
 }

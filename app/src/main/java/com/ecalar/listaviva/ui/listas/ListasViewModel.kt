@@ -168,4 +168,13 @@ class ListasViewModel @Inject constructor(
             listaCompraRepository.updateCantidadItem(familiaId, listaId, item.id, nuevaCantidad)
         }
     }
+
+    fun eliminarItemDeLista(item: ItemLista) {
+        val familiaId = preferencesRepository.getFamiliaId() ?: return
+        val listaActual = uiState.value.let { if (it is ListasState.Success) it.listaSeleccionada else null } ?: return
+
+        viewModelScope.launch {
+            listaCompraRepository.eliminarItemDeLista(familiaId, listaActual.id, item.id)
+        }
+    }
 }

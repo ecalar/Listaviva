@@ -80,7 +80,9 @@ fun AddProductoScreen(
             } else {
                 when (step) {
                     AddStep.CATEGORIAS -> {
-                        val categorias = viewModel.getCategoriasUnicas()
+                        val categorias = remember(catalogo) {
+                            catalogo.map { it.categoria }.distinct().sorted()
+                        }
                         LazyVerticalGrid(
                             columns = GridCells.Fixed(2),
                             contentPadding = PaddingValues(16.dp),
@@ -100,7 +102,9 @@ fun AddProductoScreen(
                     }
 
                     AddStep.PRODUCTOS -> {
-                        val productos = viewModel.getProductosPorCategoria(categoria)
+                        val productos = remember(catalogo, categoria) {
+                            catalogo.filter { it.categoria == categoria }.sortedBy { it.nombre }
+                        }
                         LazyVerticalGrid(
                             columns = GridCells.Fixed(2),
                             contentPadding = PaddingValues(16.dp),

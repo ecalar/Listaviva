@@ -1,7 +1,11 @@
 package com.ecalar.listaviva.ui.despensa
 
 import android.widget.Toast
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -34,8 +38,10 @@ import com.ecalar.listaviva.domain.model.EstadoProducto
 import com.ecalar.listaviva.domain.model.ListaCompra
 import com.ecalar.listaviva.domain.model.ProductoDespensa
 import com.ecalar.listaviva.ui.theme.neoBrutalism
+import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun DespensaScreen(
     onNavigateToAddProduct: () -> Unit,
@@ -49,6 +55,9 @@ fun DespensaScreen(
 
     var isSearching by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     var showDialog by remember { mutableStateOf(false) }
     var productoAAgotar by remember { mutableStateOf<ProductoDespensa?>(null) }
@@ -72,6 +81,7 @@ fun DespensaScreen(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -205,18 +215,21 @@ fun DespensaScreen(
                                 modifier = Modifier.fillMaxSize()
                             ) {
                                 items(productosAMostrar, key = { it.id }) { producto ->
-                                    ProductoNeoCard(
-                                        producto = producto,
-                                        onCantidadChange = { incremento ->
-                                            viewModel.cambiarCantidad(producto, incremento)
-                                        },
-                                        onAgotar = {
-                                            productoAAgotar = producto
-                                            showDialog = true
-                                        },
-                                        onEditar = { onNavigateToEditProduct(producto.id) },
-                                        onEliminar = { viewModel.eliminarProducto(producto.id) }
-                                    )
+                                    // Caja animada para que las tarjetas se deslicen suavemente
+                                    Box(modifier = Modifier.animateItemPlacement()) {
+                                        ProductoNeoCard(
+                                            producto = producto,
+                                            onCantidadChange = { incremento ->
+                                                viewModel.cambiarCantidad(producto, incremento)
+                                            },
+                                            onAgotar = {
+                                                productoAAgotar = producto
+                                                showDialog = true
+                                            },
+                                            onEditar = { onNavigateToEditProduct(producto.id) },
+                                            onEliminar = { viewModel.eliminarProducto(producto.id) }
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -282,6 +295,9 @@ fun DespensaScreen(
                     onClick = {
                         listaSeleccionada?.let { lista ->
                             viewModel.agotarYAñadirALista(productoAAgotar!!, lista.id)
+                            scope.launch {
+                                snackbarHostState.showSnackbar("Añadido a '${lista.nombre}'")
+                            }
                         }
                         showDialog = false
                         productoAAgotar = null
@@ -318,13 +334,20 @@ fun ProductoNeoCard(
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
 
-    val (colorEstado, textoEstado) = when (producto.estado.uppercase()) {
+    val (targetColor, textoEstado) = when (producto.estado.uppercase()) {
         EstadoProducto.COMPLETO.name -> Pair(Color(0xFF4ADE80), "COMPLETO")
         EstadoProducto.MITAD.name -> Pair(Color(0xFFFACC15), "MITAD")
         EstadoProducto.CASI_AGOTADO.name -> Pair(Color(0xFFF87171), "CASI AGOTADO")
         EstadoProducto.AGOTADO.name -> Pair(Color(0xFF9CA3AF), "AGOTADO")
         else -> Pair(Color.Gray, "DESCONOCIDO")
     }
+
+    // Animación de color de la barra
+    val animatedColor by animateColorAsState(
+        targetValue = targetColor,
+        animationSpec = tween(durationMillis = 500),
+        label = "colorAnimation"
+    )
 
     val surfaceColor = MaterialTheme.colorScheme.surface
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
@@ -334,6 +357,7 @@ fun ProductoNeoCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(bottom = 6.dp, end = 6.dp)
+            .animateContentSize() // Expansión fluida
             .neoBrutalism(cornerRadius = 12.dp, shadowOffset = 6.dp, borderColor = onSurfaceColor, shadowColor = onSurfaceColor),
         color = surfaceColor,
         shape = RoundedCornerShape(12.dp)
@@ -341,7 +365,6 @@ fun ProductoNeoCard(
         Box {
             Column(modifier = Modifier.padding(16.dp)) {
 
-                // CONTENEDOR CORREGIDO: Título y menú en la misma línea
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -365,7 +388,6 @@ fun ProductoNeoCard(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // STEPPER DE CANTIDAD
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.Center,
@@ -422,7 +444,7 @@ fun ProductoNeoCard(
                         .fillMaxWidth()
                         .height(8.dp)
                         .clip(RoundedCornerShape(50))
-                        .background(colorEstado)
+                        .background(animatedColor) // Color suavizado
                         .border(1.dp, onSurfaceColor, RoundedCornerShape(50))
                 )
             }
