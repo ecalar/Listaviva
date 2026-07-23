@@ -10,5 +10,6 @@ data class ItemLista(
     val cantidadAComprar: Int = 1,
     val comprado: Boolean = false,
     val aliasAñadidoPor: String = "",
-    val fechaAñadido: java.util.Date = java.util.Date()
+    val fechaAñadido: java.util.Date = java.util.Date(),
+    val imageUrl: String = ""
 )

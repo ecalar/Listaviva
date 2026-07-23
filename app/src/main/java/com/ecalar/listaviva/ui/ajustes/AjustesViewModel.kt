@@ -78,20 +78,19 @@ class AjustesViewModel @Inject constructor(
         val uidUsuario = authRepository.getCurrentUserUid() ?: ""
 
         viewModelScope.launch {
-            // 1. Obtenemos la familia para ver los miembros
             familiaRepository.getFamilia(familiaId).collect { result ->
                 result.onSuccess { familia ->
-                    val esElUltimo = familia.miembros.size <= 1
-
-                    if (esElUltimo) {
-                        //Borra familia completa
+                    // 1. Lógica de miembros
+                    if (familia.miembros.size <= 1) {
                         familiaRepository.borrarFamiliaCompleta(familiaId)
                     } else {
-                        // Solo nos quitamos de la lista
                         familiaRepository.quitarMiembro(familiaId, uidUsuario)
                     }
 
-                    preferencesRepository.clear()
+                    // 2. Borrar solo datos de familia
+                    preferencesRepository.clearFamiliaData()
+
+                    // 3. Navegar a pantalla de "Bienvenida" o "Crear/Unirse" en vez de Logout
                     onLogoutComplete()
                 }
             }

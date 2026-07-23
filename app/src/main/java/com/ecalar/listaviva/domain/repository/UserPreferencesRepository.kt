@@ -8,6 +8,8 @@ interface UserPreferencesRepository {
     fun getAlias(): String?
     fun setAlias(alias: String)
     fun clear()
+
+    fun clearFamiliaData()
     fun isFirstTime(): Boolean
     fun setFirstTimeCompleted()
 

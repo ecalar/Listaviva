@@ -7,7 +7,6 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -41,7 +40,7 @@ fun AjustesScreen(
 
     var showDialog by remember { mutableStateOf(false) }
     var expandidoGrupo by remember { mutableStateOf(true) }
-    var expandidoPreferencias by remember { mutableStateOf(false) }
+    var expandidoPreferencias by remember { mutableStateOf(true) }
 
     val backgroundColor = MaterialTheme.colorScheme.background
     val actionColor = MaterialTheme.colorScheme.primary
@@ -69,15 +68,19 @@ fun AjustesScreen(
                             .fillMaxSize()
                             .verticalScroll(rememberScrollState())
                             .padding(24.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                        verticalArrangement = Arrangement.spacedBy(20.dp)
                     ) {
+                        // --- SECCIÓN: PERFIL ---
                         Surface(
-                            modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp, end = 6.dp).neoBrutalism(cornerRadius = 16.dp, shadowOffset = 6.dp, borderColor = onSurfaceColor, shadowColor = onSurfaceColor),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 6.dp, end = 6.dp)
+                                .neoBrutalism(cornerRadius = 16.dp, shadowOffset = 6.dp, borderColor = onSurfaceColor, shadowColor = onSurfaceColor),
                             color = MaterialTheme.colorScheme.secondary,
                             shape = RoundedCornerShape(16.dp)
                         ) {
                             Row(modifier = Modifier.padding(24.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Person, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondary, modifier = Modifier.size(32.dp))
+                                Icon(Icons.Default.Person, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondary, modifier = Modifier.size(40.dp))
                                 Spacer(modifier = Modifier.width(16.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text("Tu alias en el grupo", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSecondary.copy(alpha = 0.8f), fontWeight = FontWeight.Bold)
@@ -86,15 +89,16 @@ fun AjustesScreen(
                             }
                         }
 
+                        // --- SECCIÓN: GRUPO ---
                         NeoAccordion(
                             title = "Grupo: ${state.familia.nombre}",
                             icon = Icons.Default.Group,
                             expanded = expandidoGrupo,
                             onHeaderClick = { expandidoGrupo = !expandidoGrupo }
                         ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+
                                 Text("Código de Invitación", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = onSurfaceColor)
-                                Spacer(modifier = Modifier.height(8.dp))
 
                                 Surface(
                                     color = actionColor,
@@ -107,13 +111,14 @@ fun AjustesScreen(
                                         color = onPrimaryColor,
                                         fontWeight = FontWeight.Black,
                                         modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
-                                        letterSpacing = 4.run { sp }
+                                        letterSpacing = 4.sp
                                     )
                                 }
 
-                                Spacer(modifier = Modifier.height(16.dp))
+                                Spacer(modifier = Modifier.height(8.dp))
 
-                                OutlinedButton(
+                                // Botón: Compartir Código
+                                Button(
                                     onClick = {
                                         val codigoGrupo = state.familia.codigoInvitacion
                                         val sendIntent = Intent(Intent.ACTION_SEND).apply {
@@ -122,35 +127,38 @@ fun AjustesScreen(
                                         }
                                         context.startActivity(Intent.createChooser(sendIntent, "Compartir código"))
                                     },
-                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = onSurfaceColor),
-                                    border = BorderStroke(width = 2.dp, color = onSurfaceColor),
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = Modifier.fillMaxWidth().neoBrutalism(cornerRadius = 12.dp, shadowOffset = 4.dp, borderColor = onSurfaceColor, shadowColor = onSurfaceColor),
+                                    colors = ButtonDefaults.buttonColors(containerColor = surfaceColor, contentColor = onSurfaceColor),
+                                    shape = RoundedCornerShape(12.dp),
+                                    contentPadding = PaddingValues(16.dp)
                                 ) {
                                     Icon(Icons.Default.Share, contentDescription = null)
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Compartir Código", fontWeight = FontWeight.Bold)
+                                    Text("Compartir Código", fontWeight = FontWeight.Black)
                                 }
 
-                                Spacer(modifier = Modifier.height(8.dp))
-
-                                OutlinedButton(
+                                // Botón: Unirse a otro grupo (CORREGIDO)
+                                Button(
                                     onClick = onNavigateToCrearUnirse,
-                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = onSurfaceColor),
-                                    border = BorderStroke(width = 2.dp, color = onSurfaceColor),
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = Modifier.fillMaxWidth().neoBrutalism(cornerRadius = 12.dp, shadowOffset = 4.dp, borderColor = onSurfaceColor, shadowColor = onSurfaceColor),
+                                    colors = ButtonDefaults.buttonColors(containerColor = surfaceColor, contentColor = onSurfaceColor),
+                                    shape = RoundedCornerShape(12.dp),
+                                    contentPadding = PaddingValues(16.dp)
                                 ) {
                                     Icon(Icons.Default.QrCodeScanner, contentDescription = null)
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Unirse a otro grupo", fontWeight = FontWeight.Bold)
+                                    Text("Unirse a otro grupo", fontWeight = FontWeight.Black)
                                 }
 
-                                Spacer(modifier = Modifier.height(8.dp))
+                                HorizontalDivider(color = onSurfaceColor.copy(alpha = 0.2f), thickness = 2.dp, modifier = Modifier.padding(vertical = 8.dp))
 
+                                // Botón: Salir del grupo
                                 Button(
                                     onClick = { showDialog = true },
-                                    modifier = Modifier.fillMaxWidth(),
+                                    modifier = Modifier.fillMaxWidth().neoBrutalism(cornerRadius = 12.dp, shadowOffset = 4.dp, borderColor = onSurfaceColor, shadowColor = onSurfaceColor),
                                     colors = ButtonDefaults.buttonColors(containerColor = destructiveColor, contentColor = MaterialTheme.colorScheme.onError),
-                                    shape = RoundedCornerShape(50)
+                                    shape = RoundedCornerShape(12.dp),
+                                    contentPadding = PaddingValues(16.dp)
                                 ) {
                                     Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null)
                                     Spacer(modifier = Modifier.width(8.dp))
@@ -159,6 +167,7 @@ fun AjustesScreen(
                             }
                         }
 
+                        // --- SECCIÓN: PREFERENCIAS ---
                         NeoAccordion(
                             title = "Preferencias",
                             icon = Icons.Default.Settings,
@@ -179,63 +188,78 @@ fun AjustesScreen(
                                 }
                             }
 
-                            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+
+                                // Tarjeta Modo Oscuro
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth().neoBrutalism(cornerRadius = 12.dp, borderWidth = 2.dp, shadowOffset = 2.dp, borderColor = onSurfaceColor, shadowColor = onSurfaceColor),
+                                    color = surfaceColor,
+                                    shape = RoundedCornerShape(12.dp)
                                 ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Default.DarkMode, contentDescription = null, tint = onSurfaceColor)
-                                        Spacer(modifier = Modifier.width(12.dp))
-                                        Text("Modo Oscuro", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge, color = onSurfaceColor)
-                                    }
-                                    Switch(
-                                        checked = isModoOscuro,
-                                        onCheckedChange = { activado -> viewModel.setModoOscuro(activado) },
-                                        colors = SwitchDefaults.colors(
-                                            checkedThumbColor = actionColor,
-                                            checkedTrackColor = onSurfaceColor,
-                                            uncheckedThumbColor = surfaceColor,
-                                            uncheckedTrackColor = Color.Gray,
-                                            checkedBorderColor = onSurfaceColor,
-                                            uncheckedBorderColor = onSurfaceColor
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(Icons.Default.DarkMode, contentDescription = null, tint = onSurfaceColor)
+                                            Spacer(modifier = Modifier.width(12.dp))
+                                            Text("Modo Oscuro", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium, color = onSurfaceColor)
+                                        }
+                                        Switch(
+                                            checked = isModoOscuro,
+                                            onCheckedChange = { activado -> viewModel.setModoOscuro(activado) },
+                                            colors = SwitchDefaults.colors(
+                                                checkedThumbColor = actionColor,
+                                                checkedTrackColor = onSurfaceColor,
+                                                uncheckedThumbColor = surfaceColor,
+                                                uncheckedTrackColor = Color.Gray,
+                                                checkedBorderColor = onSurfaceColor,
+                                                uncheckedBorderColor = onSurfaceColor
+                                            )
                                         )
-                                    )
+                                    }
                                 }
 
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                // Tarjeta Notificaciones
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth().neoBrutalism(cornerRadius = 12.dp, borderWidth = 2.dp, shadowOffset = 2.dp, borderColor = onSurfaceColor, shadowColor = onSurfaceColor),
+                                    color = surfaceColor,
+                                    shape = RoundedCornerShape(12.dp)
                                 ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Default.Notifications, contentDescription = null, tint = onSurfaceColor)
-                                        Spacer(modifier = Modifier.width(12.dp))
-                                        Text("Notificaciones", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge, color = onSurfaceColor)
-                                    }
-                                    Switch(
-                                        checked = isNotificaciones,
-                                        onCheckedChange = { activado ->
-                                            if (activado) {
-                                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                                    permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(Icons.Default.Notifications, contentDescription = null, tint = onSurfaceColor)
+                                            Spacer(modifier = Modifier.width(12.dp))
+                                            Text("Notificaciones", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium, color = onSurfaceColor)
+                                        }
+                                        Switch(
+                                            checked = isNotificaciones,
+                                            onCheckedChange = { activado ->
+                                                if (activado) {
+                                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                                        permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                                    } else {
+                                                        viewModel.setNotificaciones(true)
+                                                    }
                                                 } else {
-                                                    viewModel.setNotificaciones(true)
+                                                    viewModel.setNotificaciones(false)
                                                 }
-                                            } else {
-                                                viewModel.setNotificaciones(false)
-                                            }
-                                        },
-                                        colors = SwitchDefaults.colors(
-                                            checkedThumbColor = actionColor,
-                                            checkedTrackColor = onSurfaceColor,
-                                            uncheckedThumbColor = surfaceColor,
-                                            uncheckedTrackColor = Color.Gray,
-                                            checkedBorderColor = onSurfaceColor,
-                                            uncheckedBorderColor = onSurfaceColor
+                                            },
+                                            colors = SwitchDefaults.colors(
+                                                checkedThumbColor = actionColor,
+                                                checkedTrackColor = onSurfaceColor,
+                                                uncheckedThumbColor = surfaceColor,
+                                                uncheckedTrackColor = Color.Gray,
+                                                checkedBorderColor = onSurfaceColor,
+                                                uncheckedBorderColor = onSurfaceColor
+                                            )
                                         )
-                                    )
+                                    }
                                 }
                             }
                         }
@@ -300,7 +324,7 @@ fun NeoAccordion(
             ) {
                 Icon(icon, contentDescription = null, tint = onSurfaceColor)
                 Spacer(modifier = Modifier.width(16.dp))
-                Text(title, fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f), color = onSurfaceColor)
+                Text(title, fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f), color = onSurfaceColor)
                 Icon(
                     imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                     contentDescription = null,

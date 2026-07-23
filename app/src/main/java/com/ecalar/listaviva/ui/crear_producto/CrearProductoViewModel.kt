@@ -32,14 +32,31 @@ class CrearProductoViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<CrearProductoState>(CrearProductoState.Idle)
     val uiState: StateFlow<CrearProductoState> = _uiState.asStateFlow()
 
-    // 1. SANITIZACIÓN DE TEXTO: Solo permite letras, números y espacios. Quita símbolos raros.
+    /**
+     * Filtra caracteres no permitidos mientras el usuario escribe.
+     * No hace trim() para no impedir escribir espacios.
+     */
     fun sanitizarTexto(input: String): String {
-        val regex = Regex("[^A-Za-z0-9ÁÉÍÓÚáéíóúÑñ ]")
-        return regex.replace(input, "").replace(Regex(" +"), " ").trim()
+        val regex = Regex("[^\\p{L}\\p{N} .,'()/%+\\-]")
+        return regex.replace(input, "")
     }
 
-    // 2. CREACIÓN Y CUARENTENA
-    fun guardarNuevoProducto(codigoBarras: String, nombreCrudo: String, categoria: String, formato: String) {
+    /**
+     * Limpieza final antes de guardar.
+     */
+    private fun limpiarTextoParaGuardar(input: String): String {
+        return sanitizarTexto(input)
+            .replace(Regex(" {2,}"), " ") // múltiples espacios -> uno
+            .trim()                       // elimina espacios al inicio y final
+            .take(40)
+    }
+
+    fun guardarNuevoProducto(
+        codigoBarras: String,
+        nombreCrudo: String,
+        categoria: String,
+        formato: String
+    ) {
         val familiaId = preferencesRepository.getFamiliaId() ?: return
         val alias = preferencesRepository.getAlias() ?: "Desconocido"
 
@@ -50,27 +67,26 @@ class CrearProductoViewModel @Inject constructor(
 
         _uiState.value = CrearProductoState.Loading
 
-        val nombreLimpio = sanitizarTexto(nombreCrudo)
-            .replaceFirstChar { it.uppercase() }
-            .take(40) // Límite de 40 caracteres
+        val nombreLimpio = limpiarTextoParaGuardar(nombreCrudo)
 
         viewModelScope.launch {
             try {
-                // A) Lo guardamos en el Catálogo Global en modo "CUARENTENA"
-                // Nota: Asumimos que más adelante añadirás los campos 'verificado' o 'reportes' a tu data class ProductoCatalogo
+                // Guardar en el catálogo
                 val nuevoProductoCatalogo = ProductoCatalogo(
                     id = codigoBarras,
                     nombre = nombreLimpio,
                     categoria = categoria,
+                    formato = formato,
                     codigoBarras = codigoBarras,
-                    imageUrl = "" // Sin imagen porque es manual
+                    imageUrl = "",
+                    verificado = false
                 )
 
-                firestore.collection("catalogo_global")
+                firestore.collection("productosCatalogo")
                     .document(codigoBarras)
                     .set(nuevoProductoCatalogo)
 
-                // B) Lo añadimos directamente a la Despensa del usuario
+                // Añadir a la despensa
                 val nuevoProductoDespensa = ProductoDespensa(
                     id = "",
                     nombre = nombreLimpio,
@@ -86,8 +102,10 @@ class CrearProductoViewModel @Inject constructor(
                 despensaRepository.addProducto(familiaId, nuevoProductoDespensa)
 
                 _uiState.value = CrearProductoState.Success
+
             } catch (e: Exception) {
-                _uiState.value = CrearProductoState.Error(e.message ?: "Error al guardar")
+                _uiState.value =
+                    CrearProductoState.Error(e.message ?: "Error al guardar")
             }
         }
     }

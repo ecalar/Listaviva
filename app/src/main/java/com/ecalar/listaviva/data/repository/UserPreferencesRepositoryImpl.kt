@@ -68,4 +68,11 @@ class UserPreferencesRepositoryImpl @Inject constructor(
             preferences[booleanPreferencesKey("notificaciones_enabled")] = enabled
         }
     }
+
+    override fun clearFamiliaData() {
+        prefs.edit()
+            .remove("familia_id")
+            .remove("alias_usuario")
+            .apply()
+    }
 }

@@ -26,6 +26,12 @@ import com.ecalar.listaviva.domain.model.ItemLista
 import com.ecalar.listaviva.domain.model.ListaCompra
 import com.ecalar.listaviva.ui.theme.neoBrutalism
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.Image
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import coil.compose.AsyncImage
+import com.ecalar.listaviva.R
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -360,12 +366,41 @@ fun ItemListaNeoCard(
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Checkbox(checked = isSelected, onCheckedChange = { onToggleSelect() })
 
-                    Column(modifier = Modifier.weight(1f)) {
+                    Checkbox(
+                        checked = isSelected,
+                        onCheckedChange = { onToggleSelect() }
+                    )
+
+                    Spacer(Modifier.width(8.dp))
+
+                    AsyncImage(
+                        model = item.imageUrl.ifBlank { null },
+                        contentDescription = item.nombre,
+                        placeholder = painterResource(R.drawable.logo),
+                        error = painterResource(R.drawable.logo),
+                        fallback = painterResource(R.drawable.logo),
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .border(
+                                2.dp,
+                                onSurfaceColor,
+                                RoundedCornerShape(10.dp)
+                            )
+                    )
+
+                    Spacer(Modifier.width(12.dp))
+
+                    Column(
+                        modifier = Modifier.weight(1f)
+                    ) {
                         Text(
                             text = "${item.nombre} - ${item.cantidad}",
                             style = MaterialTheme.typography.titleMedium,
@@ -373,10 +408,21 @@ fun ItemListaNeoCard(
                         )
                     }
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = { onCantidadChange(-1) }) { Icon(Icons.Default.Remove, null) }
-                        Text("${item.cantidadAComprar}", fontWeight = FontWeight.Bold)
-                        IconButton(onClick = { onCantidadChange(1) }) { Icon(Icons.Default.Add, null) }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(onClick = { onCantidadChange(-1) }) {
+                            Icon(Icons.Default.Remove, null)
+                        }
+
+                        Text(
+                            "${item.cantidadAComprar}",
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        IconButton(onClick = { onCantidadChange(1) }) {
+                            Icon(Icons.Default.Add, null)
+                        }
                     }
                 }
             }

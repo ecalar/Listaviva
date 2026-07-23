@@ -22,6 +22,7 @@ import kotlinx.coroutines.launch
 import java.util.Date
 import javax.inject.Inject
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withTimeoutOrNull
 
 sealed class DespensaState {
     object Loading : DespensaState()
@@ -55,6 +56,8 @@ class DespensaViewModel @Inject constructor(
     init {
         cargarDatos()
     }
+
+
 
     private fun cargarDatos() {
         val familiaId = preferencesRepository.getFamiliaId()
@@ -135,7 +138,8 @@ class DespensaViewModel @Inject constructor(
                 cantidadAComprar = cantidadAComprar,
                 comprado = false,
                 aliasAñadidoPor = alias,
-                fechaAñadido = Date()
+                fechaAñadido = Date(),
+                imageUrl = producto.imageUrl
             )
             listaCompraRepository.addItemToLista(familiaId, listaId, nuevoItem)
         }
@@ -215,7 +219,7 @@ class DespensaViewModel @Inject constructor(
     // Función auxiliar para buscar en Firestore
     private suspend fun buscarProductoEnCatalogoGlobal(codigo: String): ProductoCatalogo? {
         return try {
-            val querySnapshot = firestore.collection("catalogo_global")
+            val querySnapshot = firestore.collection("productosCatalogo")
                 .whereEqualTo("codigoBarras", codigo)
                 .limit(1)
                 .get()
@@ -235,7 +239,7 @@ class DespensaViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             try {
-                // 1. ¿Está en nuestra BBDD colaborativa?
+                // 1. ¿Está en nuestro catálogo local unificado?
                 val productoEncontrado = buscarProductoEnCatalogoGlobal(codigo)
                 if (productoEncontrado != null) {
                     añadirProductoADespensa(productoEncontrado)
@@ -243,32 +247,132 @@ class DespensaViewModel @Inject constructor(
                     return@launch
                 }
 
-                // 2. ¿Está en Open Food Facts?
-                val respuesta = api.getProductByBarcode(codigo)
-                if (respuesta.status == 1 && respuesta.product != null) {
-                    val nombreCompleto = (respuesta.product.productName ?: "Producto") +
-                            (if (!respuesta.product.brands.isNullOrBlank()) " (${respuesta.product.brands})" else "")
+                // 2. ¿Está en Open Food Facts? (CON TIMEOUT DE 5 SEGUNDOS)
+                val respuesta = withTimeoutOrNull(5000L) {
+                    api.getProductByBarcode(codigo)
+                }
 
+                // 3. Procesamos si hay respuesta y todo fue bien
+                if (respuesta != null && respuesta.status == 1 && respuesta.product != null) {
+
+                    // A) Extraemos nombre y marca
+                    val nombreCrudo = respuesta.product.productName ?: "Producto"
+                    val marca = respuesta.product.brands ?: ""
+                    val nombreCompleto = if (marca.isNotBlank()) "$nombreCrudo $marca" else nombreCrudo
+
+                    // B) Sanitizamos (Title Case y límite de 40 caracteres)
+                    val nombreLimpio = nombreCompleto.toTitleCase().take(40)
+
+                    // C) Protegemos nuestras categorías
+                    val categoriaLimpia = mapearCategoria(respuesta.product.categories)
+
+                    // D) Construimos el modelo CONFIABLE
                     val nuevoProductoCatalogo = ProductoCatalogo(
                         id = codigo,
-                        nombre = nombreCompleto,
-                        categoria = "Otros",
-                        codigoBarras = codigo
+                        nombre = nombreLimpio,
+                        categoria = categoriaLimpia,
+                        codigoBarras = codigo,
+                        imageUrl = respuesta.product.imageUrl ?: "",
+                        verificado = true
                     )
 
-                    // Lo guardamos en nuestra BBDD para el futuro
-                    firestore.collection("catalogo_global").document(codigo).set(nuevoProductoCatalogo)
-
-                    // Lo añadimos a la despensa
+                    // Guardamos y añadimos
+                    firestore.collection("productosCatalogo").document(codigo).set(nuevoProductoCatalogo)
                     añadirProductoADespensa(nuevoProductoCatalogo)
-                    onSuccess(nombreCompleto)
+
+                    onSuccess(nombreLimpio)
                 } else {
-                    // 3. No existe en ningún sitio: obligamos a crear manualmente
+                    // Si ha tardado más de 5 segundos o la API no lo tiene
                     onProductoNoEncontrado(codigo)
                 }
             } catch (e: Exception) {
+                // Caída de red o error inesperado
                 onProductoNoEncontrado(codigo)
             }
+        }
+    }
+
+    // Función privada para "limpiar" la categoría de la API y adaptarla a nuestro catálogo
+    private fun mapearCategoria(categoriaApi: String?): String {
+        if (categoriaApi == null) return "Otros"
+
+        val cat = categoriaApi.lowercase()
+
+        return when {
+            // 1. Bebidas
+            cat.contains("bebida") || cat.contains("beverage") || cat.contains("drink") || cat.contains("agua") || cat.contains("water") || cat.contains("zumo") || cat.contains("juice") || cat.contains("refresco") || cat.contains("soda") || cat.contains("cerveza") || cat.contains("beer") || cat.contains("vino") || cat.contains("wine") -> "Bebidas"
+
+            // 2. Lácteos y Huevos (Ojo, el queso lo mandamos a Charcutería según tu catálogo, así que aquí va leche, yogur y huevos)
+            cat.contains("leche") || cat.contains("milk") || cat.contains("yogur") || cat.contains("yogurt") || cat.contains("huevo") || cat.contains("egg") || cat.contains("mantequilla") || cat.contains("butter") || cat.contains("dairy") || cat.contains("lácteo") -> "Lácteos y Huevos"
+
+            // 3. Charcutería y Quesos (Según tu catálogo, los quesos van aquí)
+            cat.contains("queso") || cat.contains("cheese") || cat.contains("jamón") || cat.contains("ham") || cat.contains("embutido") || cat.contains("chorizo") || cat.contains("salchichón") || cat.contains("bacon") || cat.contains("charcuterie") -> "Charcutería y Quesos"
+
+            // 4. Carnicería
+            cat.contains("carne") || cat.contains("meat") || cat.contains("pollo") || cat.contains("chicken") || cat.contains("ternera") || cat.contains("beef") || cat.contains("cerdo") || cat.contains("pork") || cat.contains("pavo") || cat.contains("turkey") -> "Carnicería"
+
+            // 5. Pescadería
+            cat.contains("pescado") || cat.contains("fish") || cat.contains("salmón") || cat.contains("salmon") || cat.contains("marisco") || cat.contains("seafood") || cat.contains("atún fresco") -> "Pescadería"
+
+            // 6. Frutería y Verdulería
+            cat.contains("fruta") || cat.contains("fruit") || cat.contains("verdura") || cat.contains("vegetable") || cat.contains("plant-based") || cat.contains("ensalada") || cat.contains("salad") -> "Frutería y Verdulería"
+
+            // 7. Panadería y Bollería
+            cat.contains("pan") || cat.contains("bread") || cat.contains("bollería") || cat.contains("pastry") || cat.contains("croissant") -> "Panadería y Bollería"
+
+            // 8. Desayuno y Dulces
+            cat.contains("galleta") || cat.contains("biscuit") || cat.contains("cookie") || cat.contains("cereal") || cat.contains("desayuno") || cat.contains("breakfast") || cat.contains("café") || cat.contains("coffee") || cat.contains("té") || cat.contains("tea") || cat.contains("mermelada") || cat.contains("jam") || cat.contains("cacao") || cat.contains("chocolate") || cat.contains("dulce") || cat.contains("sweet") -> "Desayuno y Dulces"
+
+            // 9. Snacks y Aperitivos
+            cat.contains("snack") || cat.contains("patatas fritas") || cat.contains("chips") || cat.contains("crisp") || cat.contains("fruto seco") || cat.contains("nut") || cat.contains("pipas") -> "Snacks y Aperitivos"
+
+            // 10. Congelados
+            cat.contains("congelado") || cat.contains("frozen") || cat.contains("ice cream") || cat.contains("helado") -> "Congelados"
+
+            // 11. Conservas
+            cat.contains("conserva") || cat.contains("canned") || cat.contains("lata") -> "Conservas"
+
+            // 12. Salsas y Condimentos
+            cat.contains("salsa") || cat.contains("sauce") || cat.contains("condiment") || cat.contains("kétchup") || cat.contains("mayonesa") || cat.contains("mayo") || cat.contains("mostaza") || cat.contains("mustard") || cat.contains("dressing") -> "Salsas y Condimentos"
+
+            // 13. Platos Preparados
+            cat.contains("plato preparado") || cat.contains("ready meal") || cat.contains("meal") || cat.contains("pizza") || cat.contains("hummus") || cat.contains("guacamole") -> "Platos Preparados"
+
+            // 14. Sopas y Cremas
+            cat.contains("sopa") || cat.contains("soup") || cat.contains("crema") || cat.contains("broth") || cat.contains("caldo") || cat.contains("gazpacho") -> "Sopas y Cremas"
+
+            // 15. Especias y Hierbas
+            cat.contains("especia") || cat.contains("spice") || cat.contains("hierba") || cat.contains("herb") || cat.contains("pimienta") || cat.contains("pepper") || cat.contains("sal") || cat.contains("salt") || cat.contains("orégano") -> "Especias y Hierbas"
+
+            // 16. Repostería
+            cat.contains("repostería") || cat.contains("baking") || cat.contains("levadura") || cat.contains("yeast") || cat.contains("colorante") -> "Repostería"
+
+            // 17. Higiene Personal
+            cat.contains("higiene") || cat.contains("hygiene") || cat.contains("champú") || cat.contains("shampoo") || cat.contains("gel") || cat.contains("jabón") || cat.contains("soap") || cat.contains("desodorante") || cat.contains("deodorant") || cat.contains("cosmetic") || cat.contains("dental") -> "Higiene Personal"
+
+            // 18. Limpieza del Hogar
+            cat.contains("limpieza") || cat.contains("cleaning") || cat.contains("detergente") || cat.contains("detergent") || cat.contains("suavizante") || cat.contains("lejía") -> "Limpieza del Hogar"
+
+            // 19. Hogar y Ferretería
+            cat.contains("hogar") || cat.contains("home") || cat.contains("ferretería") || cat.contains("hardware") || cat.contains("pila") || cat.contains("battery") -> "Hogar y Ferretería"
+
+            // 20. Mascotas
+            cat.contains("mascota") || cat.contains("pet") || cat.contains("perro") || cat.contains("dog") || cat.contains("gato") || cat.contains("cat") || cat.contains("pienso") -> "Mascotas"
+
+            // 21. Bebés
+            cat.contains("bebé") || cat.contains("baby") || cat.contains("infant") || cat.contains("pañal") || cat.contains("diaper") || cat.contains("potito") -> "Bebés"
+
+            // 22. Despensa (Filtro base para esenciales que no cayeron en lo anterior)
+            cat.contains("aceite") || cat.contains("oil") || cat.contains("vinagre") || cat.contains("vinegar") || cat.contains("arroz") || cat.contains("rice") || cat.contains("pasta") || cat.contains("harina") || cat.contains("flour") || cat.contains("azúcar") || cat.contains("sugar") || cat.contains("legumbre") || cat.contains("lenteja") || cat.contains("garbanzo") || cat.contains("grocery") -> "Despensa"
+
+            // Si la API nos devuelve algo súper raro que no contemplamos
+            else -> "Otros"
+        }
+    }
+
+    private fun String.toTitleCase(): String {
+        return this.lowercase().split(" ").joinToString(" ") { word ->
+            word.replaceFirstChar { it.uppercase() }
         }
     }
 }

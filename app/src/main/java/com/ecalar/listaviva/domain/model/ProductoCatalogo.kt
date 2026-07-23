@@ -9,6 +9,7 @@ data class ProductoCatalogo(
     val sugeridoPor: String = "",
     val vecesUsado: Int = 0,
     val codigoBarras: String? = null,
-    val imageUrl: String = ""
+    val imageUrl: String = "",
+    val verificado: Boolean = false
 )
 

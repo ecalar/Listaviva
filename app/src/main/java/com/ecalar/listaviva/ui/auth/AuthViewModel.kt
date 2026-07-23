@@ -34,18 +34,6 @@ class AuthViewModel @Inject constructor(
 
     init {
         checkAuthStatus()
-        fun verificarIntegridadSesion() {
-            val familiaId = preferencesRepository.getFamiliaId()
-            if (familiaId != null) {
-                viewModelScope.launch {
-                    familiaRepository.getFamilia(familiaId).collect { result ->
-                        result.onFailure {
-                            preferencesRepository.clear()
-                        }
-                    }
-                }
-            }
-        }
     }
 
     private fun checkAuthStatus() {
@@ -53,6 +41,7 @@ class AuthViewModel @Inject constructor(
             authRepository.currentUserUid.collect { uid ->
                 if (uid != null) {
                     val isFirstTime = preferencesRepository.isFirstTime()
+                    // Aquí lee si hay familia en SharedPreferences
                     val hasFamilia = preferencesRepository.getFamiliaId() != null
                     _authState.value = AuthState.Authenticated(uid, isFirstTime, hasFamilia)
                 } else {
@@ -71,6 +60,4 @@ class AuthViewModel @Inject constructor(
             }
         }
     }
-
-
 }

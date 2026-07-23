@@ -8,6 +8,7 @@ data class OpenFoodFactsResponse(
 )
 
 data class OffProduct(
+    @SerializedName("image_front_url") val imageFrontUrl: String?,
     @SerializedName("image_url") val imageUrl: String?,
     @SerializedName("product_name") val productName: String?,
     @SerializedName("brands") val brands: String?,

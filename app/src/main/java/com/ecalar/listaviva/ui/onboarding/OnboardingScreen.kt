@@ -36,18 +36,18 @@ fun OnboardingScreen(
 ) {
     val pages = listOf(
         OnboardingPage(
-            title = "Tranquilidad Total",
-            description = "Tu despensa siempre bajo control sin esfuerzo. Nunca más olvidarás comprar lo que hace falta.",
+            title = "Tu Despensa al Día",
+            description = "Controla todo lo que tienes en casa de forma visual. Olvídate de duplicar compras o de no saber qué falta.",
             icon = Icons.Default.Inventory
         ),
         OnboardingPage(
-            title = "Sincronización Mágica",
-            description = "Añade, agota o compra productos y todos los miembros del grupo lo verán actualizado al instante.",
+            title = "Comparte sin Límites",
+            description = "Perfecto para familias, pisos de estudiantes o grupos de amigos que organizan una comida o barbacoa conjunta.",
             icon = Icons.Default.Sync
         ),
         OnboardingPage(
             title = "Cero Fricción",
-            description = "Sin emails, sin contraseñas. Crea un grupo e invita a los demás al instante mediante un código.",
+            description = "Escanea códigos de barras, sincroniza al instante y colabora en tiempo real con un simple código de invitación.",
             icon = Icons.Default.NoAccounts
         )
     )

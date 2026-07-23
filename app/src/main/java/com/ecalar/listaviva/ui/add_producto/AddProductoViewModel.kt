@@ -105,7 +105,7 @@ class AddProductoViewModel @Inject constructor(
                     codigoBarras = codigoBarras
                 )
                 // Ahora firestore ya es una variable conocida y no dará error
-                firestore.collection("catalogo_global").document(codigoBarras).set(nuevoCatalogo)
+                firestore.collection("productosCatalogo").document(codigoBarras).set(nuevoCatalogo)
             }
 
             // 2. Guardamos el producto en la despensa
