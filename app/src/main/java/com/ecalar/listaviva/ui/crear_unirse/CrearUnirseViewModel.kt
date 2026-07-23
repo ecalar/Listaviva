@@ -44,7 +44,8 @@ class CrearUnirseViewModel @Inject constructor(
             _uiState.value = CrearUnirseState.Loading
             val uid = authRepository.currentUserUid.firstOrNull() ?: return@launch
 
-            val result = familiaRepository.crearFamilia(nombreGrupo, uid)
+            // AÑADIDO: Pasamos el alias a Firebase
+            val result = familiaRepository.crearFamilia(nombreGrupo, uid, alias)
             result.onSuccess { familia ->
 
                 // --- INICIO AJUSTE: Autogenerar lista por defecto ---
@@ -77,7 +78,7 @@ class CrearUnirseViewModel @Inject constructor(
             _uiState.value = CrearUnirseState.Loading
             val uid = authRepository.currentUserUid.firstOrNull() ?: return@launch
 
-            val result = familiaRepository.unirseFamilia(codigo.uppercase(), uid)
+            val result = familiaRepository.unirseFamilia(codigo.uppercase(), uid, alias)
             result.onSuccess { familia ->
                 preferencesRepository.setFamiliaId(familia.id)
                 preferencesRepository.setAlias(alias)

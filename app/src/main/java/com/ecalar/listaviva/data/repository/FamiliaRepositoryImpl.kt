@@ -16,10 +16,9 @@ class FamiliaRepositoryImpl @Inject constructor(
 
     private val familiasCollection = firestore.collection("familias")
 
-    override suspend fun crearFamilia(nombre: String, uidCreador: String): Result<Familia> {
+    override suspend fun crearFamilia(nombre: String, uidCreador: String, aliasCreador: String): Result<Familia> {
         return try {
             val docRef = familiasCollection.document()
-            // Generador de código alfanumérico de 6 caracteres correcto
             val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
             val codigoGenerado = (1..6).map { chars.random() }.joinToString("")
 
@@ -29,6 +28,7 @@ class FamiliaRepositoryImpl @Inject constructor(
                 codigoInvitacion = codigoGenerado,
                 creadoPor = uidCreador,
                 miembros = listOf(uidCreador),
+                aliasMiembros = mapOf(uidCreador to aliasCreador), // <-- GUARDAMOS EL ALIAS
                 creadoEn = Date()
             )
 
@@ -39,7 +39,7 @@ class FamiliaRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun unirseFamilia(codigo: String, uidUsuario: String): Result<Familia> {
+    override suspend fun unirseFamilia(codigo: String, uidUsuario: String, aliasUsuario: String): Result<Familia> {
         return try {
             val snapshot = familiasCollection
                 .whereEqualTo("codigoInvitacion", codigo)
@@ -54,10 +54,18 @@ class FamiliaRepositoryImpl @Inject constructor(
             val familia = doc.toObject(Familia::class.java)?.copy(id = doc.id)
                 ?: return Result.failure(Exception("Error al leer la familia"))
 
-            // Añadir al usuario si no está en la lista
             if (!familia.miembros.contains(uidUsuario)) {
                 val nuevosMiembros = familia.miembros + uidUsuario
-                doc.reference.update("miembros", nuevosMiembros).await()
+                // Mantenemos los alias anteriores y añadimos el nuevo
+                val nuevosAlias = familia.aliasMiembros.toMutableMap()
+                nuevosAlias[uidUsuario] = aliasUsuario
+
+                doc.reference.update(
+                    mapOf(
+                        "miembros" to nuevosMiembros,
+                        "aliasMiembros" to nuevosAlias
+                    )
+                ).await()
             }
 
             Result.success(familia)
@@ -100,38 +108,54 @@ class FamiliaRepositoryImpl @Inject constructor(
                 ?: return Result.failure(Exception("Familia no encontrada"))
 
             val nuevosMiembros = familia.miembros.filter { it != uidUsuario }
-            actualizarMiembros(familiaId, nuevosMiembros)
+            // Limpiamos también su alias del mapa
+            val nuevosAlias = familia.aliasMiembros.toMutableMap()
+            nuevosAlias.remove(uidUsuario)
+
+            docRef.update(
+                mapOf(
+                    "miembros" to nuevosMiembros,
+                    "aliasMiembros" to nuevosAlias
+                )
+            ).await()
+            Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
+    // --- NUEVA FUNCIÓN PARA CAMBIAR EL ALIAS ---
+    override suspend fun actualizarAlias(familiaId: String, uidUsuario: String, nuevoAlias: String): Result<Unit> {
+        return try {
+            val docRef = familiasCollection.document(familiaId)
+            // Actualizamos solo la clave específica dentro del mapa en Firestore
+            docRef.update("aliasMiembros.$uidUsuario", nuevoAlias).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 
     override suspend fun borrarFamiliaCompleta(familiaId: String): Result<Unit> {
         return try {
             val familiaRef = familiasCollection.document(familiaId)
 
-            // 1. Obtenemos todos los documentos que queremos borrar ANTES del batch
             val productos = familiaRef.collection("productosDespensa").get().await()
             val listas = familiaRef.collection("listasCompra").get().await()
 
-            // Para cada lista, obtenemos sus items (subcolección)
             val itemsPorLista = listas.documents.map { listaDoc ->
                 listaDoc.reference.collection("items").get().await()
             }
 
             firestore.runBatch { batch ->
-                // Borramos todos los productos de la despensa
                 for (doc in productos) batch.delete(doc.reference)
 
-                // Borramos todas las listas y sus items
                 listas.documents.forEachIndexed { index, listaDoc ->
                     val items = itemsPorLista[index]
                     for (itemDoc in items) batch.delete(itemDoc.reference)
                     batch.delete(listaDoc.reference)
                 }
 
-                // 2. Finalmente borramos el documento de la familia
                 batch.delete(familiaRef)
             }.await()
 

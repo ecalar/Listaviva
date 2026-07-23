@@ -2,7 +2,6 @@ package com.ecalar.listaviva.ui.listas
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.ecalar.listaviva.domain.model.EstadoProducto
 import com.ecalar.listaviva.domain.model.ItemLista
 import com.ecalar.listaviva.domain.model.ListaCompra
 import com.ecalar.listaviva.domain.repository.DespensaRepository
@@ -12,6 +11,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -20,7 +20,8 @@ sealed class ListasState {
     data class Success(
         val listas: List<ListaCompra>,
         val listaSeleccionada: ListaCompra?,
-        val itemsPendientes: List<ItemLista>
+        val itemsPendientes: List<ItemLista>,
+        val itemsMarcadosOcultos: Boolean // NUEVO: Estado para saber si estamos filtrando
     ) : ListasState()
     data class Error(val message: String) : ListasState()
 }
@@ -35,9 +36,18 @@ class ListasViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<ListasState>(ListasState.Loading)
     val uiState: StateFlow<ListasState> = _uiState.asStateFlow()
 
-    // Estado local para guardar los IDs de los productos marcados con el tick verde
     private val _itemsSeleccionados = MutableStateFlow<Set<String>>(emptySet())
     val itemsSeleccionados: StateFlow<Set<String>> = _itemsSeleccionados.asStateFlow()
+
+    // --- Preferencias ---
+    val vibracionEnabled = preferencesRepository.isVibracionEnabled()
+        .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000), true)
+
+    val confirmarBorrado = preferencesRepository.isConfirmarBorrado()
+        .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000), true)
+
+    // Estado interno para el filtro
+    private var ocultarComprados = false
 
     init {
         cargarListas()
@@ -59,7 +69,7 @@ class ListasViewModel @Inject constructor(
                     if (listaActual != null) {
                         cargarItems(familiaId, listaActual, listas)
                     } else {
-                        _uiState.value = ListasState.Success(listas, null, emptyList())
+                        _uiState.value = ListasState.Success(listas, null, emptyList(), ocultarComprados)
                     }
                 }.onFailure { e ->
                     _uiState.value = ListasState.Error(e.message ?: "Error al cargar listas")
@@ -72,7 +82,6 @@ class ListasViewModel @Inject constructor(
         val familiaId = preferencesRepository.getFamiliaId() ?: return
         val currentListas = (_uiState.value as? ListasState.Success)?.listas ?: return
 
-        // Limpiamos las selecciones al cambiar de lista
         _itemsSeleccionados.value = emptySet()
         cargarItems(familiaId, lista, currentListas)
     }
@@ -85,15 +94,18 @@ class ListasViewModel @Inject constructor(
         viewModelScope.launch {
             listaCompraRepository.getItemsLista(familiaId, lista.id).collect { result ->
                 result.onSuccess { items ->
-                    val itemsPendientes =
-                        items.filter { !it.comprado }.sortedByDescending { it.fechaAñadido }
-                    _uiState.value = ListasState.Success(todasLasListas, lista, itemsPendientes)
+                    // APLICAMOS EL FILTRO AQUÍ
+                    val itemsPendientes = items
+                        .filter { !it.comprado }
+                        .filter { item -> if (ocultarComprados) !_itemsSeleccionados.value.contains(item.id) else true }
+                        .sortedByDescending { it.fechaAñadido }
+
+                    _uiState.value = ListasState.Success(todasLasListas, lista, itemsPendientes, ocultarComprados)
                 }
             }
         }
     }
 
-    // Activa o desactiva el tick verde localmente (sin borrarlo de la lista)
     fun toggleItemSeleccionado(itemId: String) {
         val seleccionados = _itemsSeleccionados.value.toMutableSet()
         if (seleccionados.contains(itemId)) {
@@ -102,32 +114,51 @@ class ListasViewModel @Inject constructor(
             seleccionados.add(itemId)
         }
         _itemsSeleccionados.value = seleccionados
+
+        // Recargamos los items si estamos en modo "ocultar comprados" para que desaparezca visualmente
+        if (ocultarComprados) {
+            val currentState = _uiState.value as? ListasState.Success
+            if (currentState != null && currentState.listaSeleccionada != null) {
+                val familiaId = preferencesRepository.getFamiliaId() ?: return
+                cargarItems(familiaId, currentState.listaSeleccionada, currentState.listas)
+            }
+        }
     }
 
-    // Confirma la compra enviando todos los productos marcados a la despensa
+    // Función para alternar el botón del ojo (Ocultar/Mostrar comprados)
+    fun toggleOcultarComprados() {
+        ocultarComprados = !ocultarComprados
+        val currentState = _uiState.value as? ListasState.Success
+        if (currentState != null && currentState.listaSeleccionada != null) {
+            val familiaId = preferencesRepository.getFamiliaId() ?: return
+            cargarItems(familiaId, currentState.listaSeleccionada, currentState.listas)
+        }
+    }
+
     fun confirmarCompra() {
         val familiaId = preferencesRepository.getFamiliaId() ?: return
         val listaId = (_uiState.value as? ListasState.Success)?.listaSeleccionada?.id ?: return
-        val currentState = _uiState.value as? ListasState.Success ?: return
 
-        val itemsAComprar = currentState.itemsPendientes.filter { _itemsSeleccionados.value.contains(it.id) }
+        // Buscamos directamente en el repositorio (por si los tenemos ocultos visualmente)
+        val itemsAComprar = _itemsSeleccionados.value
+
         if (itemsAComprar.isEmpty()) return
 
         viewModelScope.launch {
-            itemsAComprar.forEach { item ->
-                // 1. Lo marcamos como comprado en la lista
-                listaCompraRepository.marcarItemComprado(familiaId, listaId, item.id, true)
+            itemsAComprar.forEach { itemId ->
+                listaCompraRepository.marcarItemComprado(familiaId, listaId, itemId, true)
+                // Buscamos el ID original del producto despensa
+                val currentState = _uiState.value as? ListasState.Success
+                val item = currentState?.itemsPendientes?.find { it.id == itemId }
 
-                // 2. Ejecutamos la transacción en la despensa pasándole la cantidad comprada
-                if (item.despensaProductoId != null) {
+                if (item?.despensaProductoId != null) {
                     despensaRepository.registrarCompra(
                         familiaId,
                         item.despensaProductoId,
-                        item.cantidadAComprar // Aquí inyectamos el valor del stepper
+                        item.cantidadAComprar
                     )
                 }
             }
-            // Limpiamos la selección
             _itemsSeleccionados.value = emptySet()
         }
     }
@@ -161,7 +192,6 @@ class ListasViewModel @Inject constructor(
         val familiaId = preferencesRepository.getFamiliaId() ?: return
         val listaId = (_uiState.value as? ListasState.Success)?.listaSeleccionada?.id ?: return
 
-        // No permitimos comprar menos de 1 unidad
         val nuevaCantidad = (item.cantidadAComprar + incremento).coerceAtLeast(1)
 
         viewModelScope.launch {
@@ -175,6 +205,13 @@ class ListasViewModel @Inject constructor(
 
         viewModelScope.launch {
             listaCompraRepository.eliminarItemDeLista(familiaId, listaActual.id, item.id)
+
+            // Si el item estaba seleccionado, lo quitamos de la cuenta
+            val seleccionados = _itemsSeleccionados.value.toMutableSet()
+            if (seleccionados.contains(item.id)) {
+                seleccionados.remove(item.id)
+                _itemsSeleccionados.value = seleccionados
+            }
         }
     }
 }

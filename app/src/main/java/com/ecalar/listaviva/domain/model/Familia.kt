@@ -8,5 +8,6 @@ data class Familia(
     val codigoInvitacion: String = "",
     val creadoPor: String = "",
     val miembros: List<String> = emptyList(),
-    val creadoEn: Date = Date()
+    val creadoEn: Date = Date(),
+    val aliasMiembros: Map<String, String> = emptyMap(),
 )

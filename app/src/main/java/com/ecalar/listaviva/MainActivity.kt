@@ -1,6 +1,5 @@
 package com.ecalar.listaviva
 
-import android.R.style.Theme
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -25,11 +24,16 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            // Observamos el valor de DataStore. Emitirá un cambio cada vez que toques el Switch
             val isDarkMode by preferencesRepository.isModoOscuro().collectAsState(initial = false)
+            val colorPrincipal by preferencesRepository.getColorPrincipal().collectAsState(initial = "Verde")
 
-            // Pasamos el booleano al tema principal de Jetpack Compose
-            ListaVivaTheme(darkTheme = isDarkMode) {
+            val tamanoTexto by preferencesRepository.getTamañoTexto().collectAsState(initial = "Normal")
+
+            ListaVivaTheme(
+                darkTheme = isDarkMode,
+                colorPrincipal = colorPrincipal,
+                tamanoTexto = tamanoTexto // <-- Pasamos la nueva variable aquí al motor visual
+            ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background

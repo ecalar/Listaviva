@@ -1,8 +1,11 @@
 package com.ecalar.listaviva.ui.scanner
 
 import android.Manifest
+import android.media.AudioManager
+import android.media.ToneGenerator
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
@@ -12,6 +15,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.FlashlightOff
+import androidx.compose.material.icons.filled.FlashlightOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,18 +29,33 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.ecalar.listaviva.utils.BarcodeAnalyzer
+import kotlinx.coroutines.delay
 
 @Composable
 fun ScannerScreen(
     onNavigateBack: () -> Unit,
     onBarcodeScanned: (String) -> Unit
 ) {
-    // Esta variable actúa como un interruptor para evitar múltiples escaneos
+    // Control de lectura para evitar bucles de escaneo del mismo producto
     var yaEscaneado by remember { mutableStateOf(false) }
+
+    // Control de la linterna
+    var isTorchOn by remember { mutableStateOf(false) }
+    var camera by remember { mutableStateOf<Camera?>(null) }
 
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var hasPermission by remember { mutableStateOf(false) }
+
+    // Generador de tono clásico de escáner (Beep)
+    val toneGenerator = remember { ToneGenerator(AudioManager.STREAM_MUSIC, 100) }
+
+    // Liberamos el reproductor de sonido al salir de la pantalla
+    DisposableEffect(Unit) {
+        onDispose {
+            toneGenerator.release()
+        }
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
@@ -44,6 +64,19 @@ fun ScannerScreen(
 
     LaunchedEffect(Unit) {
         permissionLauncher.launch(Manifest.permission.CAMERA)
+    }
+
+    // Efecto de reactivación: Permite volver a escanear tras 2 segundos si seguimos en la pantalla
+    LaunchedEffect(yaEscaneado) {
+        if (yaEscaneado) {
+            delay(2000L)
+            yaEscaneado = false
+        }
+    }
+
+    // Efecto para encender/apagar la linterna cuando cambia el estado
+    LaunchedEffect(isTorchOn, camera) {
+        camera?.cameraControl?.enableTorch(isTorchOn)
     }
 
     if (hasPermission) {
@@ -67,9 +100,10 @@ fun ScannerScreen(
                                 it.setAnalyzer(
                                     ContextCompat.getMainExecutor(ctx),
                                     BarcodeAnalyzer { barcode ->
-                                        // Solo ejecutamos la lógica si no hemos escaneado antes
                                         if (!yaEscaneado) {
                                             yaEscaneado = true
+                                            // Emitir el sonido de éxito (Beep) durante 150 milisegundos
+                                            toneGenerator.startTone(ToneGenerator.TONE_PROP_BEEP, 150)
                                             onBarcodeScanned(barcode)
                                         }
                                     }
@@ -80,7 +114,8 @@ fun ScannerScreen(
 
                         try {
                             cameraProvider.unbindAll()
-                            cameraProvider.bindToLifecycle(
+                            // Guardamos la instancia de la cámara devuelta para poder controlar el flash
+                            camera = cameraProvider.bindToLifecycle(
                                 lifecycleOwner,
                                 cameraSelector,
                                 preview,
@@ -96,6 +131,7 @@ fun ScannerScreen(
                 modifier = Modifier.fillMaxSize()
             )
 
+            // Botón Volver
             IconButton(
                 onClick = onNavigateBack,
                 modifier = Modifier
@@ -106,12 +142,29 @@ fun ScannerScreen(
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver", tint = Color.White)
             }
 
+            // Botón Linterna (Flash)
+            IconButton(
+                onClick = { isTorchOn = !isTorchOn },
+                modifier = Modifier
+                    .padding(16.dp)
+                    .background(Color.Black.copy(alpha = 0.5f), shape = MaterialTheme.shapes.small)
+                    .align(Alignment.TopEnd)
+            ) {
+                Icon(
+                    imageVector = if (isTorchOn) Icons.Default.FlashlightOn else Icons.Default.FlashlightOff,
+                    contentDescription = "Linterna",
+                    tint = if (isTorchOn) Color.Yellow else Color.White
+                )
+            }
+
+            // Área de enfoque (Visual)
             Box(
                 modifier = Modifier
                     .align(Alignment.Center)
                     .size(250.dp, 150.dp)
                     .background(Color.Transparent)
             )
+
             Text(
                 "Apunta al código de barras",
                 color = Color.White,
@@ -125,7 +178,7 @@ fun ScannerScreen(
         }
     } else {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("Se requiere permiso de cámara para escanear.")
+            Text("Se requiere permiso de cámara para escanear.", fontWeight = FontWeight.Bold)
         }
     }
 }

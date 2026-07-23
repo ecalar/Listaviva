@@ -1,5 +1,7 @@
 package com.ecalar.listaviva.ui.listas
 
+import android.app.Activity
+import android.view.WindowManager
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -14,30 +16,36 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
+import com.ecalar.listaviva.R
 import com.ecalar.listaviva.domain.model.ItemLista
 import com.ecalar.listaviva.domain.model.ListaCompra
 import com.ecalar.listaviva.ui.theme.neoBrutalism
 import kotlinx.coroutines.launch
-import androidx.compose.foundation.Image
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
-import coil.compose.AsyncImage
-import com.ecalar.listaviva.R
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ListasScreen(viewModel: ListasViewModel = hiltViewModel()) {
     val uiState by viewModel.uiState.collectAsState()
     val itemsSeleccionados by viewModel.itemsSeleccionados.collectAsState()
+    val vibracionEnabled by viewModel.vibracionEnabled.collectAsState()
+    val confirmarBorrado by viewModel.confirmarBorrado.collectAsState()
 
     val backgroundColor = MaterialTheme.colorScheme.background
     val actionColor = MaterialTheme.colorScheme.primary
@@ -47,23 +55,46 @@ fun ListasScreen(viewModel: ListasViewModel = hiltViewModel()) {
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val haptic = LocalHapticFeedback.current
 
     var listaParaEditar by remember { mutableStateOf<ListaCompra?>(null) }
     var showEditDialog by remember { mutableStateOf(false) }
     var showCreateDialog by remember { mutableStateOf(false) }
     var showConfirmDialog by remember { mutableStateOf(false) }
+    var itemToDelete by remember { mutableStateOf<ItemLista?>(null) }
+
+    // --- CORRECCIÓN: Mantener pantalla encendida de forma segura ---
+    val context = LocalContext.current
+    DisposableEffect(Unit) {
+        val window = (context as? Activity)?.window
+        window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        onDispose {
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
-            topBar@
             TopAppBar(
                 title = { Text("Listas", fontWeight = FontWeight.Black, color = onSurfaceColor) },
+                actions = {
+                    // Botón para ocultar/mostrar productos comprados (solo visible si hay una lista cargada)
+                    if (uiState is ListasState.Success) {
+                        val state = uiState as ListasState.Success
+                        IconButton(onClick = { viewModel.toggleOcultarComprados() }) {
+                            Icon(
+                                imageVector = if (state.itemsMarcadosOcultos) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = "Ocultar/Mostrar marcados",
+                                tint = onSurfaceColor
+                            )
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = backgroundColor)
             )
         },
         floatingActionButton = {
-            // Este botón SIEMPRE está visible y solo sirve para crear listas
             FloatingActionButton(
                 onClick = { showCreateDialog = true },
                 containerColor = actionColor,
@@ -119,41 +150,56 @@ fun ListasScreen(viewModel: ListasViewModel = hiltViewModel()) {
                             }
                         }
 
-                        LazyColumn(
-                            contentPadding = PaddingValues(16.dp),
-                            modifier = Modifier.weight(1f) // Se quita el verticalArrangement para evitar saltos en la animación
-                        ) {
-                            items(state.itemsPendientes, key = { it.id }) { item ->
-                                val isSeleccionado = itemsSeleccionados.contains(item.id)
+                        if (state.itemsPendientes.isEmpty() && state.itemsMarcadosOcultos && itemsSeleccionados.isNotEmpty()) {
+                            // Mensaje si los ocultamos todos
+                            Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                Text("Todos los productos están marcados (y ocultos)", fontWeight = FontWeight.Bold, color = onSurfaceColor.copy(alpha = 0.6f))
+                            }
+                        } else {
+                            LazyColumn(
+                                contentPadding = PaddingValues(16.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                items(state.itemsPendientes, key = { it.id }) { item ->
+                                    val isSeleccionado = itemsSeleccionados.contains(item.id)
 
-                                // Caja animada para que las tarjetas se deslicen suavemente
-                                Box(modifier = Modifier.animateItemPlacement()) {
-                                    ItemListaNeoCard(
-                                        item = item,
-                                        isSelected = isSeleccionado,
-                                        onToggleSelect = { viewModel.toggleItemSeleccionado(item.id) },
-                                        onCantidadChange = { incremento ->
-                                            viewModel.cambiarCantidadItem(item, incremento)
-                                        },
-                                        onDelete = {
-                                            viewModel.eliminarItemDeLista(item)
-                                        }
-                                    )
+                                    Box(modifier = Modifier.animateItemPlacement()) {
+                                        ItemListaNeoCard(
+                                            item = item,
+                                            isSelected = isSeleccionado,
+                                            confirmarBorrado = confirmarBorrado,
+                                            onToggleSelect = {
+                                                if (vibracionEnabled) {
+                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                }
+                                                viewModel.toggleItemSeleccionado(item.id)
+                                            },
+                                            onCantidadChange = { incremento ->
+                                                viewModel.cambiarCantidadItem(item, incremento)
+                                            },
+                                            onDelete = {
+                                                if (confirmarBorrado) {
+                                                    itemToDelete = item
+                                                } else {
+                                                    viewModel.eliminarItemDeLista(item)
+                                                }
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }
 
-                        if (state.itemsPendientes.isNotEmpty()) {
+                        if (itemsSeleccionados.isNotEmpty()) {
                             val marcados = itemsSeleccionados.size
-                            val totales = state.itemsPendientes.size
+                            val totales = state.itemsPendientes.size + (if (state.itemsMarcadosOcultos) marcados else 0)
 
                             Surface(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    // Margen inferior para que no se superponga con el FAB
                                     .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 88.dp)
                                     .neoBrutalism(cornerRadius = 16.dp, shadowOffset = 6.dp, borderColor = onSurfaceColor, shadowColor = onSurfaceColor),
-                                color = if (marcados > 0) actionColor else surfaceColor,
+                                color = actionColor,
                                 shape = RoundedCornerShape(16.dp)
                             ) {
                                 Row(
@@ -162,18 +208,17 @@ fun ListasScreen(viewModel: ListasViewModel = hiltViewModel()) {
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Column {
-                                        Text("En el carro:", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = if (marcados > 0) onPrimaryColor else onSurfaceColor)
+                                        Text("En el carro:", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = onPrimaryColor)
                                         Text(
                                             text = "$marcados / $totales",
                                             fontWeight = FontWeight.Black,
                                             style = MaterialTheme.typography.titleLarge,
-                                            color = if (marcados > 0) onPrimaryColor else onSurfaceColor
+                                            color = onPrimaryColor
                                         )
                                     }
 
                                     Button(
-                                        onClick = { if (marcados > 0) showConfirmDialog = true },
-                                        enabled = marcados > 0,
+                                        onClick = { showConfirmDialog = true },
                                         colors = ButtonDefaults.buttonColors(containerColor = onSurfaceColor, contentColor = backgroundColor),
                                         shape = RoundedCornerShape(8.dp)
                                     ) {
@@ -189,6 +234,30 @@ fun ListasScreen(viewModel: ListasViewModel = hiltViewModel()) {
         }
     }
 
+    // --- DIÁLOGO DE CONFIRMACIÓN DE BORRADO INDIVIDUAL ---
+    if (itemToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { itemToDelete = null },
+            containerColor = surfaceColor,
+            modifier = Modifier.neoBrutalism(cornerRadius = 16.dp, borderWidth = 2.dp, shadowOffset = 6.dp, borderColor = onSurfaceColor, shadowColor = onSurfaceColor),
+            title = { Text("Eliminar Producto", fontWeight = FontWeight.Black, color = onSurfaceColor) },
+            text = { Text("¿Deseas eliminar '${itemToDelete?.nombre}' de la lista de la compra?", color = onSurfaceColor) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        itemToDelete?.let { viewModel.eliminarItemDeLista(it) }
+                        itemToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Eliminar", color = Color.White) }
+            },
+            dismissButton = {
+                TextButton(onClick = { itemToDelete = null }) { Text("Cancelar", color = onSurfaceColor) }
+            }
+        )
+    }
+
+    // --- RESTO DE DIÁLOGOS ORIGINALES ---
     if (showCreateDialog) {
         var nuevaListaNombre by remember { mutableStateOf("") }
         AlertDialog(
@@ -307,20 +376,19 @@ fun ListasScreen(viewModel: ListasViewModel = hiltViewModel()) {
 fun ItemListaNeoCard(
     item: ItemLista,
     isSelected: Boolean,
+    confirmarBorrado: Boolean,
     onToggleSelect: () -> Unit,
     onCantidadChange: (Int) -> Unit,
     onDelete: () -> Unit
 ) {
     val surfaceColor = MaterialTheme.colorScheme.surface
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
-    val actionColor = MaterialTheme.colorScheme.primary
 
-    // Estado que controla el deslizamiento
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { dismissValue ->
             if (dismissValue == SwipeToDismissBoxValue.EndToStart) {
                 onDelete()
-                true
+                !confirmarBorrado
             } else {
                 false
             }
@@ -329,10 +397,10 @@ fun ItemListaNeoCard(
 
     SwipeToDismissBox(
         state = dismissState,
-        enableDismissFromStartToEnd = false, // Solo permitimos deslizar de derecha a izquierda
+        enableDismissFromStartToEnd = false,
         backgroundContent = {
             val color = if (dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart) {
-                Color(0xFFEF4444) // Rojo al deslizar
+                Color(0xFFEF4444)
             } else {
                 Color.Transparent
             }
@@ -354,7 +422,6 @@ fun ItemListaNeoCard(
             }
         },
         content = {
-            // ESTA ES TU TARJETA ORIGINAL INTACTA
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -371,14 +438,8 @@ fun ItemListaNeoCard(
                         .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-
-                    Checkbox(
-                        checked = isSelected,
-                        onCheckedChange = { onToggleSelect() }
-                    )
-
+                    Checkbox(checked = isSelected, onCheckedChange = { onToggleSelect() })
                     Spacer(Modifier.width(8.dp))
-
                     AsyncImage(
                         model = item.imageUrl.ifBlank { null },
                         contentDescription = item.nombre,
@@ -389,40 +450,20 @@ fun ItemListaNeoCard(
                         modifier = Modifier
                             .size(56.dp)
                             .clip(RoundedCornerShape(10.dp))
-                            .border(
-                                2.dp,
-                                onSurfaceColor,
-                                RoundedCornerShape(10.dp)
-                            )
+                            .border(2.dp, onSurfaceColor, RoundedCornerShape(10.dp))
                     )
-
                     Spacer(Modifier.width(12.dp))
-
-                    Column(
-                        modifier = Modifier.weight(1f)
-                    ) {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "${item.nombre} - ${item.cantidad}",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Black
                         )
                     }
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(onClick = { onCantidadChange(-1) }) {
-                            Icon(Icons.Default.Remove, null)
-                        }
-
-                        Text(
-                            "${item.cantidadAComprar}",
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        IconButton(onClick = { onCantidadChange(1) }) {
-                            Icon(Icons.Default.Add, null)
-                        }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { onCantidadChange(-1) }) { Icon(Icons.Default.Remove, null) }
+                        Text("${item.cantidadAComprar}", fontWeight = FontWeight.Bold)
+                        IconButton(onClick = { onCantidadChange(1) }) { Icon(Icons.Default.Add, null) }
                     }
                 }
             }

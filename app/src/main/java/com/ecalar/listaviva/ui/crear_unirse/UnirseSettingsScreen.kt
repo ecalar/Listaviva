@@ -13,7 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.ecalar.listaviva.ui.scanner.QrScannerScreen
+import com.ecalar.listaviva.ui.scanner.ScannerScreen
 import com.ecalar.listaviva.ui.theme.neoBrutalism
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -38,12 +38,12 @@ fun UnirseSettingsScreen(
     }
 
     if (showScanner) {
-        QrScannerScreen(
-            onQrScanned = { codigoScaneado ->
+        ScannerScreen(
+            onNavigateBack = { showScanner = false },
+            onBarcodeScanned = { codigoScaneado ->
                 codigoInvitacion = codigoScaneado
                 showScanner = false
-            },
-            onClose = { showScanner = false }
+            }
         )
     } else {
         Scaffold(
